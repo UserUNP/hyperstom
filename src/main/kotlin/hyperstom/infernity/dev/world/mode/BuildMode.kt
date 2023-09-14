@@ -1,12 +1,12 @@
-package hyperstom.infernity.dev.plot.mode
+package hyperstom.infernity.dev.world.mode
 
-import hyperstom.infernity.dev.tagstore.StorePlotState
+import hyperstom.infernity.dev.tagstore.StoreWorldState
 import hyperstom.infernity.dev.tagstore.TagStore
 import net.minestom.server.event.EventFilter
 import net.minestom.server.event.EventNode
 
 object BuildMode : ModeHandler {
-    private val node = EventNode.tag("modeHandler_build", EventFilter.PLAYER, TagStore.tag(StorePlotState::class), StorePlotState::usingBuild)
+    private val node = EventNode.tag("modeHandler_build", EventFilter.PLAYER, TagStore.tag(StoreWorldState::class), StoreWorldState::usingBuild)
 
     override fun init() {
     }

@@ -1,4 +1,4 @@
-package hyperstom.infernity.dev.plot.mode
+package hyperstom.infernity.dev.world.mode
 
 import net.minestom.server.event.EventNode
 

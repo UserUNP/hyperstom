@@ -1,7 +1,9 @@
 package hyperstom.infernity.dev.code.block
 
 import hyperstom.infernity.dev.code.action.CodeAction
+import hyperstom.infernity.dev.code.action.PlayerActions
 import hyperstom.infernity.dev.code.event.CodeEvent
+import hyperstom.infernity.dev.code.event.PlayerEvents
 import hyperstom.infernity.dev.gsonSerializer
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextDecoration
@@ -36,8 +38,8 @@ interface CodeBlock {
     enum class Type { EVENT, ACTION, SCOPED, DATA }
 
     enum class Properties(val block: Block, private val type: Type) {
-        PLAYER_EVENT(Block.DIAMOND_BLOCK, Type.EVENT),
-        PLAYER_ACTION(Block.COBBLESTONE, Type.ACTION),
+        PLAYER_EVENT(Block.DIAMOND_BLOCK, Type.EVENT) { init { setRegistry(PlayerActions) } },
+        PLAYER_ACTION(Block.COBBLESTONE, Type.ACTION) { init { setRegistry(PlayerEvents) } },
         IF_PLAYER(Block.OAK_PLANKS, Type.SCOPED),
         FUNCTION(Block.LAPIS_BLOCK, Type.DATA),
         ;

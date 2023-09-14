@@ -1,6 +1,7 @@
 package hyperstom.infernity.dev.code.block
 
 import hyperstom.infernity.dev.code.action.CodeAction
+import hyperstom.infernity.dev.code.interpreter.ExecutionContext
 import net.minestom.server.coordinate.Point
 import net.minestom.server.entity.Entity
 import net.minestom.server.instance.Instance
@@ -9,7 +10,7 @@ import net.minestom.server.tag.Tag
 import net.minestom.server.utils.entity.EntityFinder
 
 data class ActionBlock(val props: CodeBlock.Properties, val action: CodeAction) : CodeBlock {
-    override val defaultSign = CodeBlock.Sign(props.displayName, action.javaClass.simpleName, "", "")
+    override val defaultSign = CodeBlock.Sign(props.displayName, if (action.isDefault) "" else action.javaClass.simpleName, "", "")
 
     override fun place(point: Point, instance: Instance, signBlock: Block) {
         val x = point.blockX(); val y = point.blockY(); val z = point.blockZ()
@@ -22,7 +23,11 @@ data class ActionBlock(val props: CodeBlock.Properties, val action: CodeAction) 
     override fun interpret(self: Entity, instance: Instance, sign: CodeBlock.Sign) {
         val target = EntityFinder.TargetSelector.valueOf(sign.l4)
         val entities = EntityFinder().setTargetSelector(target).find(instance, self)
-        for (entity in entities) action.execute(instance, entity)
+        val context = ExecutionContext(instance)
+        for (entity in entities) {
+            context.entity = entity
+            action.execute(context)
+        }
     }
 
     private fun argumentsContainer() = Block.BARREL.withTag(Tag.String("type"), "container")

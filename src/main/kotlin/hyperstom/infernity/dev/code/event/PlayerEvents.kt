@@ -6,7 +6,7 @@ import net.kyori.adventure.text.Component
 private enum class PlayerCodeEvents : CodeEvent {
     Join {
         override val description: List<Component> = listOf()
-        override val interpreterThread: InterpreterThread = InterpreterThread()
+        override fun interpreterThread() = InterpreterThread()
     },
 }
 
