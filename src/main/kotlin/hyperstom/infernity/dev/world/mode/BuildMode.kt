@@ -6,11 +6,9 @@ import net.minestom.server.event.EventFilter
 import net.minestom.server.event.EventNode
 
 object BuildMode : ModeHandler {
-    private val node = EventNode.tag("modeHandler_build", EventFilter.PLAYER, TagStore.tag(StoreWorldState::class), StoreWorldState::usingBuild)
+    override val eventNode = EventNode.tag("modeHandler_build", EventFilter.PLAYER, TagStore.tag(StoreWorldState::class), StoreWorldState::usingBuild)
 
     override fun init() {
     }
 
-    override fun getNode(): EventNode<*> = node
-    override fun toString(): String = "Build"
 }

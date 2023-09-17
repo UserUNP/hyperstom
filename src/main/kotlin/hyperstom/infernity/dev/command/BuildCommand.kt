@@ -7,9 +7,9 @@ import net.minestom.server.utils.validate.Check
 
 class BuildCommand : HSCommand("build") {
     init {
-        Syntax { player, store, _ ->
+        Syntax(emptyArray()) { player, store, _ ->
             var state = store.read(StoreWorldState::class)
-            if (state.mode == ModeHandler.Mode.BUILD.ordinal) throw RuntimeException("Already in build mode!")
+            if (state.mode == ModeHandler.Mode.BUILD) throw RuntimeException("Already in build mode!")
             store.write(state.withMode(ModeHandler.Mode.BUILD).also { state = it })
             val world = WorldManager.worlds[state.id]
             Check.notNull(world, "World with id ${state.id} does not exist!")

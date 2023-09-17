@@ -1,5 +1,6 @@
 package hyperstom.infernity.dev
 
+import hyperstom.infernity.dev.code.block.CodeBlock
 import hyperstom.infernity.dev.command.*
 import hyperstom.infernity.dev.world.mode.ModeHandler
 import hyperstom.infernity.dev.tagstore.StoreWorldState
@@ -19,8 +20,6 @@ val TAG_STORE_HOME = Tag.NBT("hyperstom")
 
 fun main() {
     val server = MinecraftServer.init()
-    MojangAuth.init()
-    server.start("0.0.0.0", 25565)
 
     val instanceManager = MinecraftServer.getInstanceManager()
     val hubInstance = instanceManager.createInstanceContainer(DimensionType.OVERWORLD)
@@ -30,7 +29,7 @@ fun main() {
     ModeHandler.Mode.PLAY.init()
     ModeHandler.Mode.BUILD.init()
     ModeHandler.Mode.DEV.init()
-    for (mode in ModeHandler.Mode.entries) eventHandler.addChild(mode.getNode())
+    for (mode in ModeHandler.Mode.entries) eventHandler.addChild(mode.eventNode)
 
     val cmdManager = MinecraftServer.getCommandManager()
     cmdManager.register(AboutCommand())
@@ -39,6 +38,7 @@ fun main() {
     cmdManager.register(BuildCommand())
     cmdManager.register(DevCommand())
 
+    CodeBlock.initProperties()
     WorldManager.initWorlds()
 
     eventHandler.addListener(PlayerLoginEvent::class.java) {
@@ -47,4 +47,7 @@ fun main() {
         Check.notNull(world, "Hub world (id $HUB_WORLD_ID) does not exist!")
         world.setDefaultInstance(it)
     }
+
+    MojangAuth.init()
+    server.start("0.0.0.0", 25565)
 }

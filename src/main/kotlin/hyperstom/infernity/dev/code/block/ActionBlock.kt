@@ -1,5 +1,6 @@
 package hyperstom.infernity.dev.code.block
 
+import hyperstom.infernity.dev.Utils
 import hyperstom.infernity.dev.code.action.CodeAction
 import hyperstom.infernity.dev.code.interpreter.ExecutionContext
 import net.minestom.server.coordinate.Point
@@ -7,17 +8,18 @@ import net.minestom.server.entity.Entity
 import net.minestom.server.instance.Instance
 import net.minestom.server.instance.block.Block
 import net.minestom.server.tag.Tag
+import net.minestom.server.utils.Direction
 import net.minestom.server.utils.entity.EntityFinder
 
 data class ActionBlock(val props: CodeBlock.Properties, val action: CodeAction) : CodeBlock {
     override val defaultSign = CodeBlock.Sign(props.displayName, if (action.isDefault) "" else action.javaClass.simpleName, "", "")
 
     override fun place(point: Point, instance: Instance, signBlock: Block) {
-        val x = point.blockX(); val y = point.blockY(); val z = point.blockZ()
-        instance.setBlock(x, y, z, props.block.withTag(Tag.String("type"), "block"))
-        instance.setBlock(x, y, z + 1, Block.STONE)
-        instance.setBlock(x, y + 1, z, argumentsContainer())
-        instance.setBlock(x - 1, y, z, signBlock)
+        val block = props.block.withTag(Tag.String("type"), "block").withTag(Tag.String("codeblock"), "action")
+        instance.setBlock(Utils.shiftPoint(point, Direction.SOUTH), Block.STONE)
+        instance.setBlock(Utils.shiftPoint(point, Direction.UP), argumentsContainer())
+        instance.setBlock(Utils.shiftPoint(point, Direction.WEST), signBlock)
+        instance.setBlock(point, block)
     }
 
     override fun interpret(self: Entity, instance: Instance, sign: CodeBlock.Sign) {

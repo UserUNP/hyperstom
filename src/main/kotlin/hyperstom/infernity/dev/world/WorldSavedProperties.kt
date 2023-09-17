@@ -23,8 +23,6 @@ data class WorldSavedProperties(val name: String, val owner: UUID?, val spawnLoc
         }
     }
 
-    enum class ContributorLevel { ADMIN, DEV, BUILDER }
-
     companion object {
         fun read(file: ByteArray): WorldSavedProperties {
             val buffer = NetworkBuffer(ByteBuffer.wrap(file), false)

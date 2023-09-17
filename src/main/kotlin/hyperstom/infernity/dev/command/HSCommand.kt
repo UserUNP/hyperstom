@@ -12,15 +12,12 @@ abstract class HSCommand(name: String) : Command(name) {
         setDefaultExecutor { sender, _ -> sender.sendMessage("Invalid syntax!") }
     }
 
-    open inner class Syntax(arguments: Array<out Argument<*>>, executor: CommandExecutor, check: CommandCheck) {
-        constructor(vararg arguments: Argument<*>, executor: CommandExecutor) : this(arguments, executor, { _,_,_ -> true })
-
+    open inner class Syntax(arguments: Array<out Argument<*>>, executor: CommandExecutor) {
         init {
             addSyntax({ sender, context ->
                 if (sender !is Player) return@addSyntax
                 try {
                     val store = TagStore(sender)
-                    if (!check.apply(sender, store, context)) return@addSyntax
                     executor.apply(sender, store, context)
                 } catch (e: Exception) {
                     sender.sendMessage("ERROR: ${e.message}")
@@ -31,8 +28,5 @@ abstract class HSCommand(name: String) : Command(name) {
 
     fun interface CommandExecutor {
         fun apply(player: Player, store: TagStore, context: CommandContext)
-    }
-    fun interface CommandCheck {
-        fun apply(player: Player, store: TagStore, context: CommandContext): Boolean
     }
 }

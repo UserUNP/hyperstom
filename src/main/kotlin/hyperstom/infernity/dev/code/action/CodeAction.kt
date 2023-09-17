@@ -10,7 +10,7 @@ interface CodeAction {
     //TODO: make Arguments interface that defines the args for it's action and getter & setter methods that could set/get to null (if missing)
 
     abstract class Registry {
-        abstract val defaultAction: CodeAction
+        abstract val default: CodeAction
         abstract fun get(index: Int): CodeAction
     }
 

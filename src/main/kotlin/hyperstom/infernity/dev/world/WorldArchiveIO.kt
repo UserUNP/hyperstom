@@ -2,6 +2,7 @@ package hyperstom.infernity.dev.world
 
 import hyperstom.infernity.dev.WORLDS_DIR
 import net.hollowcube.polar.PolarLoader
+import net.hollowcube.polar.PolarReader
 import net.hollowcube.polar.PolarWriter
 import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
@@ -31,8 +32,8 @@ class WorldArchiveIO(val id: Int) {
             entry = stream.nextEntry
         }
         val properties = WorldSavedProperties.read(propsFile)
-        val build = PolarLoader(ByteArrayInputStream(buildFile))
-        val dev = PolarLoader(ByteArrayInputStream(devFile))
+        val build = PolarLoader(PolarReader.read(buildFile))
+        val dev = DevSpaceLoader(PolarReader.read(devFile))
         return Data(properties, build, dev)
     }
 
@@ -64,7 +65,7 @@ class WorldArchiveIO(val id: Int) {
         stream.close()
     }
 
-    data class Data(val properties: WorldSavedProperties, val build: PolarLoader, val dev: PolarLoader) {
+    data class Data(val properties: WorldSavedProperties, val build: PolarLoader, val dev: DevSpaceLoader) {
         fun propsFile() = ByteArrayInputStream(properties.getBytes())
         fun buildFile() = ByteArrayInputStream(PolarWriter.write(build.world()))
         fun devFile() = ByteArrayInputStream(PolarWriter.write(dev.world()))

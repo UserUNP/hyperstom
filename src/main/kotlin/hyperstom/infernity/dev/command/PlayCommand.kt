@@ -7,9 +7,9 @@ import net.minestom.server.utils.validate.Check
 
 class PlayCommand : HSCommand("play") {
     init {
-        Syntax { player, store, _ ->
+        Syntax(emptyArray()) { player, store, _ ->
             var state = store.read(StoreWorldState::class)
-            if (state.mode == ModeHandler.Mode.PLAY.ordinal) throw RuntimeException("Already in play mode!")
+            if (state.mode == ModeHandler.Mode.PLAY) throw RuntimeException("Already in play mode!")
             store.write(state.withMode(ModeHandler.Mode.PLAY).also { state = it })
             val world = WorldManager.worlds[state.id]
             Check.notNull(world, "World with id ${state.id} does not exist!")

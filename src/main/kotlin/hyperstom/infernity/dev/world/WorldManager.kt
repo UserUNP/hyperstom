@@ -1,8 +1,8 @@
 package hyperstom.infernity.dev.world
 
 import hyperstom.infernity.dev.HUB_WORLD_ID
+import hyperstom.infernity.dev.Utils
 import hyperstom.infernity.dev.WORLDS_DIR
-import hyperstom.infernity.dev.getResource
 import net.hollowcube.polar.PolarLoader
 import net.hollowcube.polar.PolarWorld
 import net.minestom.server.MinecraftServer
@@ -22,7 +22,8 @@ import java.util.UUID
 class WorldManager(io: WorldArchiveIO) {
     private val id = io.id
     private val archive = io.read()
-    private val properties = archive.properties
+    val properties = archive.properties
+
     private val build = InstanceContainer(UUID.nameUUIDFromBytes("hs_world$id-build".toByteArray()), DimensionType.OVERWORLD, archive.build)
     private val dev = InstanceContainer(UUID.nameUUIDFromBytes("hs_world$id-dev".toByteArray()), DimensionType.OVERWORLD, archive.dev)
     private val play = SharedInstance(UUID.nameUUIDFromBytes("hs_world$id-play".toByteArray()), build)
@@ -80,7 +81,7 @@ class WorldManager(io: WorldArchiveIO) {
             if (!worlds.containsKey(HUB_WORLD_ID)) {
                 val archiveIO = WorldArchiveIO(HUB_WORLD_ID)
                 val properties = WorldSavedProperties("HUB WORLD", null, null, mapOf())
-                archiveIO.write(WorldArchiveIO.Data(properties, PolarLoader(getResource("build")), PolarLoader(PolarWorld())))
+                archiveIO.write(WorldArchiveIO.Data(properties, PolarLoader(Utils.getResource("build")), DevSpaceLoader(PolarWorld())))
                 worlds[HUB_WORLD_ID] = WorldManager(archiveIO)
             }
         }

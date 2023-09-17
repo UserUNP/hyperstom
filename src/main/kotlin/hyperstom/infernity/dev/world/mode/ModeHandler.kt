@@ -3,9 +3,8 @@ package hyperstom.infernity.dev.world.mode
 import net.minestom.server.event.EventNode
 
 interface ModeHandler {
+    val eventNode: EventNode<*>
     fun init()
-    fun getNode(): EventNode<*>
-    override fun toString(): String
 
     enum class Mode(private val handler: ModeHandler) : ModeHandler {
         PLAY(PlayMode),
@@ -13,8 +12,8 @@ interface ModeHandler {
         DEV(DevMode),
         ;
 
+        override val eventNode = handler.eventNode
         override fun init() = handler.init()
-        override fun getNode() = handler.getNode()
         override fun toString() = handler.toString()
     }
 }

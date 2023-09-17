@@ -12,11 +12,12 @@ data class ScopedBlock(val props: CodeBlock.Properties, val action: CodeAction) 
 
     override fun place(point: Point, instance: Instance, signBlock: Block) {
         val x = point.blockX(); val y = point.blockY(); val z = point.blockZ()
-        instance.setBlock(x, y, z, props.block.withTag(Tag.String("type"), "block"))
+        val block = props.block.withTag(Tag.String("type"), "block").withTag(Tag.String("codeblock"), "scoped")
         instance.setBlock(x, y, z + 1, Block.PISTON.withProperty("facing", "south"))
         instance.setBlock(x, y, z + 3, Block.PISTON.withProperty("facing", "north"))
         instance.setBlock(x, y + 1, z, argumentsContainer())
         instance.setBlock(x - 1, y, z, signBlock)
+        instance.setBlock(x, y, z, block)
     }
 
     override fun interpret(self: Entity, instance: Instance, sign: CodeBlock.Sign) {

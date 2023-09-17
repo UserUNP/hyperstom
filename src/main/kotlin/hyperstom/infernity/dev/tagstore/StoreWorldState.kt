@@ -4,7 +4,9 @@ import hyperstom.infernity.dev.world.mode.ModeHandler
 import org.jglrxavpok.hephaistos.nbt.NBT
 
 @JvmRecord
-data class StoreWorldState(val mode: Int, val id: Int) : TagStore.Companion.StoreData {
+data class StoreWorldState(val num: Int, val id: Int) : TagStore.Companion.StoreData {
+    val mode: ModeHandler.Mode
+        get() = ModeHandler.Mode.entries[num]
 
     fun withMode(newMode: ModeHandler.Mode) = StoreWorldState(newMode.ordinal, id)
 
@@ -17,8 +19,8 @@ data class StoreWorldState(val mode: Int, val id: Int) : TagStore.Companion.Stor
             }
         }
 
-        fun usingPlay(state: StoreWorldState?) = state?.mode == ModeHandler.Mode.PLAY.ordinal
-        fun usingBuild(state: StoreWorldState?) = state?.mode == ModeHandler.Mode.BUILD.ordinal
-        fun usingDev(state: StoreWorldState?) = state?.mode == ModeHandler.Mode.DEV.ordinal
+        fun usingPlay(state: StoreWorldState?) = state?.num == ModeHandler.Mode.PLAY.ordinal
+        fun usingBuild(state: StoreWorldState?) = state?.num == ModeHandler.Mode.BUILD.ordinal
+        fun usingDev(state: StoreWorldState?) = state?.num == ModeHandler.Mode.DEV.ordinal
     }
 }

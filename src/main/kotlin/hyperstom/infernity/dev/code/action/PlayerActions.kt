@@ -22,6 +22,6 @@ private enum class PlayerCodeAction : CodeAction {
 }
 
 object PlayerActions : CodeAction.Registry() {
-    override val defaultAction: CodeAction = DefaultAction
+    override val default: CodeAction = DefaultAction
     override fun get(index: Int): CodeAction = PlayerCodeAction.entries[index]
 }

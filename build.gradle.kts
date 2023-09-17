@@ -15,6 +15,10 @@ dependencies {
     implementation("dev.hollowcube:minestom-ce:e9d0098418")
     implementation("dev.hollowcube:polar:1.3.2")
 
+    // adventure
+    implementation("net.kyori:adventure-text-serializer-plain:4.14.0")
+    implementation("net.kyori:adventure-text-minimessage:4.14.0")
+
     // logging
     implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0")
     implementation("org.apache.logging.log4j:log4j-api-kotlin:1.2.0")
