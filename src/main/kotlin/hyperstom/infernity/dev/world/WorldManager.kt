@@ -25,8 +25,8 @@ class WorldManager(io: WorldArchiveIO) {
     val properties = archive.properties
 
     private val build = InstanceContainer(UUID.nameUUIDFromBytes("hs_world$id-build".toByteArray()), DimensionType.OVERWORLD, archive.build)
-    private val dev = InstanceContainer(UUID.nameUUIDFromBytes("hs_world$id-dev".toByteArray()), DimensionType.OVERWORLD, archive.dev)
-    private val play = SharedInstance(UUID.nameUUIDFromBytes("hs_world$id-play".toByteArray()), build)
+    val dev = InstanceContainer(UUID.nameUUIDFromBytes("hs_world$id-dev".toByteArray()), DimensionType.OVERWORLD, archive.dev)
+    val play = SharedInstance(UUID.nameUUIDFromBytes("hs_world$id-play".toByteArray()), build)
     init {
         val instanceManager = MinecraftServer.getInstanceManager()
         dev.setGenerator { unit ->

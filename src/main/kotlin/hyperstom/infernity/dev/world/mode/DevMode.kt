@@ -1,7 +1,6 @@
 package hyperstom.infernity.dev.world.mode
 
 import hyperstom.infernity.dev.Utils
-import hyperstom.infernity.dev.code.block.CodeBlock
 import hyperstom.infernity.dev.tagstore.StoreWorldState
 import hyperstom.infernity.dev.tagstore.TagStore
 import net.minestom.server.event.EventFilter
@@ -23,7 +22,7 @@ object DevMode : ModeHandler {
     private fun placeBlock(event: PlayerBlockPlaceEvent) {
         event.isCancelled = true
 
-        val props = CodeBlock.get(event.block)
+        val props = ActionCodeBlock.get(event.block)
         if (props == null) {
             event.isCancelled = true
             return
@@ -69,7 +68,6 @@ object DevMode : ModeHandler {
                 instance.setBlock(pistonEndPos, Block.AIR)
 
                 for (z in connectorPos.blockZ()..<pistonEndPos.blockZ()) {
-                    event.player.sendMessage("z: $z")
                     val currentPos = connectorPos.withZ(z.toDouble())
                     val upPos = Utils.shiftPoint(currentPos, Direction.UP)
                     val signPos = Utils.shiftPoint(currentPos, Direction.WEST)

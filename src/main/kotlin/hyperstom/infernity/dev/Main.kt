@@ -1,6 +1,5 @@
 package hyperstom.infernity.dev
 
-import hyperstom.infernity.dev.code.block.CodeBlock
 import hyperstom.infernity.dev.command.*
 import hyperstom.infernity.dev.world.mode.ModeHandler
 import hyperstom.infernity.dev.tagstore.StoreWorldState
@@ -38,7 +37,7 @@ fun main() {
     cmdManager.register(BuildCommand())
     cmdManager.register(DevCommand())
 
-    CodeBlock.initProperties()
+    ActionCodeBlock.initProperties()
     WorldManager.initWorlds()
 
     eventHandler.addListener(PlayerLoginEvent::class.java) {
