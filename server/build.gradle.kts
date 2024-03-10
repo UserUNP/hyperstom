@@ -4,7 +4,7 @@ plugins {
     application
 }
 
-group = "dev.bedcrab.hypersquare"
+group = "dev.bedcrab.hyperstom"
 version = "1.0.0-alpha"
 
 repositories {
