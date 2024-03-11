@@ -126,7 +126,7 @@ private object DevMode : ModeHandler {
             instance.setBlock(currentPos, Block.AIR)
             instance.setBlock(upPos, Block.AIR)
             instance.setBlock(leftPos, Block.AIR)
-            // move backwards
+            // move forewards/backwards
             instance.setBlock(currentPos.withZ { it + amount }, msBlock)
             instance.setBlock(upPos.withZ { it + amount }, containerBlock)
             instance.setBlock(leftPos.withZ { it + amount }, instVisBlock)

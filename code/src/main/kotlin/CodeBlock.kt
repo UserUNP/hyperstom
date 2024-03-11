@@ -1,5 +1,6 @@
 package dev.bedcrab.hyperstom.code
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import dev.bedcrab.hyperstom.cborSerialize
 import dev.bedcrab.hyperstom.shiftPoint
 import kotlinx.serialization.Serializable
@@ -14,6 +15,8 @@ val INST_VIS_MS_BLOCK = Block.OAK_WALL_SIGN.withProperty("facing", "west")
 val OPEN_BRACKET_MS_BLOCK = Block.PISTON.withProperty("facing", "south")
 val CLOSE_BRACKET_MS_BLOCK = Block.PISTON.withProperty("facing", "north")
 
+private val LOGGER = KotlinLogging.logger {}
+
 private val MS_UP_VEC = Vec(0.0, 1.0, 0.0)
 private val MS_LEFT_VEC = Vec(-1.0, 0.0, 0.0)
 private val MS_RIGHT_VEC = Vec(-1.0, 0.0, 0.0)
@@ -22,16 +25,47 @@ private val MS_BACKWARD_VEC = Vec(0.0, 0.0, -1.0)
 
 fun getContainerMinestomPos(origin: Point) = shiftPoint(origin, MS_UP_VEC)
 fun getConnectorMinestomPos(origin: Point) = shiftPoint(origin, MS_FORWARD_VEC)
+fun getEndBracketMinestomPos(origin: Point) = shiftPoint(origin, MS_FORWARD_VEC, 3.0)
 fun getInstVisMinestomPos(origin: Point) = shiftPoint(origin, MS_LEFT_VEC)
 
 private val nameToCodeBlockType = mutableMapOf<String, CodeBlockType<*>>()
 private val msBlockToCodeBlock = mapOf(
-    Block.REDSTONE_BLOCK to CodeBlock.WORLD_EVENT
+    Block.LAPIS_BLOCK to CodeBlock.FUNCTION,
+    Block.EMERALD_BLOCK to CodeBlock.PROCESS,
+
+    Block.REDSTONE_BLOCK to CodeBlock.WORLD_EVENT,
+    Block.DIAMOND_BLOCK to CodeBlock.PLAYER_EVENT,
+    Block.GOLD_BLOCK to CodeBlock.NPC_EVENT,
+
+    Block.NETHERRACK to CodeBlock.WORLD_ACTION,
+    Block.COBBLESTONE to CodeBlock.PLAYER_ACTION,
+    Block.MOSSY_COBBLESTONE to CodeBlock.NPC_ACTION,
+    Block.RAW_IRON_BLOCK to CodeBlock.SET_VAR,
+
+    Block.NETHER_BRICKS to CodeBlock.IF_WORLD,
+    Block.OAK_PLANKS to CodeBlock.IF_PLAYER,
+    Block.BRICKS to CodeBlock.IF_NPC,
+    Block.OBSIDIAN to CodeBlock.IF_VAR,
+
+    Block.TARGET to CodeBlock.TARGET,
+    Block.PRISMARINE_BRICKS to CodeBlock.REPEAT,
 )
 
 fun getCodeMinestomBlock(msBlock: Block) = msBlockToCodeBlock[msBlock] ?: throw RuntimeException("${msBlock.name()} is not a code block!")
 fun <T : Invokable> rootCodeBlockEntry(type: CodeBlockType<T>, data: T) = RootCodeBlockEntry(type.name, data.toString())
 fun getCodeBlockType(type: String) = nameToCodeBlockType[type] ?: throw RuntimeException("Unsupported code block type! $type")
+
+val DATA_TYPE get() = CodeBlockType("DATA", true) { TODO("Data code block types aren't implemented yet!") }
+val EVENT_TYPE get() = CodeBlockType("EVENT", true) { HSEvent.valueOf(it) }
+val ACTION_TYPE get() = CodeBlockType<Nothing>("ACTION", false)
+val SCOPED_TYPE get() = CodeBlockType<Nothing>("SCOPED", true)
+@Serializable data class RootCodeBlockEntry(val type: String, val data: String)
+class CodeBlockType<T : Invokable>(val name: String, brackets: Boolean, private val getter: ((data: String) -> T)? = null) {
+    val root = getter != null
+    val space = if(brackets) 3 else 1
+    operator fun invoke(data: String) = getter?.invoke(data) ?: throw RuntimeException("This code block is not of a root type!")
+    init { nameToCodeBlockType[name] = this }
+}
 
 enum class CodeBlock(val type: CodeBlockType<*>) {
     FUNCTION(DATA_TYPE), PROCESS(DATA_TYPE),
@@ -41,30 +75,21 @@ enum class CodeBlock(val type: CodeBlockType<*>) {
     TARGET(SCOPED_TYPE), REPEAT(SCOPED_TYPE),
     ;
     val label = name.replace("_", " ")
-}
-
-val DATA_TYPE = CodeBlockType("DATA", true) { TODO("Data code block types aren't implemented yet!") }
-val EVENT_TYPE = CodeBlockType("EVENT", true) { HSEvent.valueOf(it) }
-val ACTION_TYPE = CodeBlockType<Nothing>("ACTION", false)
-val SCOPED_TYPE = CodeBlockType<Nothing>("SCOPED", true)
-@Serializable data class RootCodeBlockEntry(val type: String, val data: String)
-class CodeBlockType<T : Invokable>(val name: String, brackets: Boolean, private val getter: ((data: String) -> T)? = null) {
-    val root = getter != null
-    val space = if(brackets) 3 else 1
-    operator fun invoke(data: String) = getter?.invoke(data) ?: throw RuntimeException("This code block is not of a root type!")
-    init { nameToCodeBlockType[name] = this }
+    init {
+        LOGGER.info { "Registered code block $this with type ${type.name}@${type.hashCode()}" }
+    }
 }
 
 fun Instance.placeCodeBlock(msBlock: Block, hsBlock: CodeBlock, inst: InstProperties?, pos: Point) {
     val instVis = MinestomInstVisual(hsBlock.label, inst?.label ?: "", "", "")
     val instVisBlock = instVis().apply { withNbt(cborSerialize(instVis, nbt())) }
     setBlock(pos, msBlock)
-    setBlock(shiftPoint(pos, MS_LEFT_VEC), instVisBlock)
-    setBlock(shiftPoint(pos, MS_UP_VEC), ARGS_CONTAINER_MS_BLOCK)
-    if (hsBlock.type == ACTION_TYPE) setBlock(shiftPoint(pos, MS_FORWARD_VEC), CONNECTOR_MS_BLOCK)
+    setBlock(getInstVisMinestomPos(pos), instVisBlock)
+    setBlock(getContainerMinestomPos(pos), ARGS_CONTAINER_MS_BLOCK)
+    if (hsBlock.type == ACTION_TYPE) setBlock(getConnectorMinestomPos(pos), CONNECTOR_MS_BLOCK)
     else {
-        setBlock(shiftPoint(pos, MS_FORWARD_VEC), OPEN_BRACKET_MS_BLOCK)
-        setBlock(shiftPoint(pos, MS_FORWARD_VEC, hsBlock.type.space.toDouble()), CLOSE_BRACKET_MS_BLOCK)
+        setBlock(getConnectorMinestomPos(pos), OPEN_BRACKET_MS_BLOCK)
+        setBlock(getEndBracketMinestomPos(pos), CLOSE_BRACKET_MS_BLOCK)
     }
 }
 

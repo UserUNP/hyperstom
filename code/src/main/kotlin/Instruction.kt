@@ -16,7 +16,7 @@ typealias InstList = MutableList<Instruction>
  */
 typealias InstVisual<T> = () -> T
 
-class MinestomInstVisual(
+@Serializable class MinestomInstVisual(
     private val l1: String,
     private val l2: String,
     private val l3: String,

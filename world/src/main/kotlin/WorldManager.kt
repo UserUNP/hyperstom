@@ -26,8 +26,8 @@ fun getWorld(id: UUID) = worlds[id] ?: throw NullPointerException("World with id
 
 class WorldManager(val id: UUID, val files: WorldArchiveFiles) : StoreDataProvider<WorldVarData> {
     val info = files.info
-    private val build = InstanceContainer(UUID.nameUUIDFromBytes("$id.$WORLDS_EXT/$id.build".toByteArray()), DimensionType.OVERWORLD, files.build)
-    private val dev = InstanceContainer(UUID.nameUUIDFromBytes("$WORLDS_EXT/$id.dev".toByteArray()), DimensionType.OVERWORLD, files.dev)
+    val build = InstanceContainer(UUID.nameUUIDFromBytes("$id.$WORLDS_EXT/$id.build".toByteArray()), DimensionType.OVERWORLD, files.build)
+    val dev = InstanceContainer(UUID.nameUUIDFromBytes("$WORLDS_EXT/$id.dev".toByteArray()), DimensionType.OVERWORLD, files.dev)
     val play = SharedInstance(UUID.nameUUIDFromBytes("$WORLDS_EXT/$id.play".toByteArray()), build)
     init {
         val instanceManager = MinecraftServer.getInstanceManager()

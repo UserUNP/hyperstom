@@ -77,8 +77,8 @@ class BuildCommand : HSCommand("build") {
     init {
         Syntax {
             val world = TagStore(player).use { setMode(it, ModeHandler.Mode.BUILD) }
-            player.setGameMode(GameMode.SURVIVAL)
-            player.setInstance(world.play, world.info.spawnLoc ?: BUILD_SPAWN_POINT)
+            player.setGameMode(GameMode.CREATIVE)
+            player.setInstance(world.build, world.info.spawnLoc ?: BUILD_SPAWN_POINT)
         }
     }
 }
@@ -87,8 +87,8 @@ class DevCommand : HSCommand("dev") {
     init {
         Syntax {
             val world = TagStore(player).use { setMode(it, ModeHandler.Mode.DEV) }
-            player.setGameMode(GameMode.SURVIVAL)
-            player.setInstance(world.play, world.info.spawnLoc ?: DEV_SPAWN_POINT)
+            player.setGameMode(GameMode.CREATIVE)
+            player.setInstance(world.dev, world.info.spawnLoc ?: DEV_SPAWN_POINT)
         }
     }
 }

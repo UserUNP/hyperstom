@@ -7,6 +7,7 @@ import net.minestom.server.entity.Entity
 import net.minestom.server.event.trait.InstanceEvent
 import net.minestom.server.instance.Instance
 import java.util.UUID
+import kotlinx.serialization.Serializable
 import kotlin.coroutines.EmptyCoroutineContext
 
 class ExecutionController {
