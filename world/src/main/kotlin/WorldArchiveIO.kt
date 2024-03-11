@@ -2,7 +2,8 @@
 
 package dev.bedcrab.hyperstom.world
 
-import dev.bedcrab.hyperstom.POLAR_BUILD_TEMPLATE
+import dev.bedcrab.hyperstom.PersistentData
+import dev.bedcrab.hyperstom.getResource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import net.hollowcube.polar.PolarLoader
 import net.hollowcube.polar.PolarReader
@@ -102,7 +103,7 @@ data class WorldArchiveFiles(
     companion object {
         fun default(i: WorldInfo) = WorldArchiveFiles(
             i, WorldVarData(mutableMapOf()),
-            PolarLoader(POLAR_BUILD_TEMPLATE), PolarLoader(PolarWorld())
+            PolarLoader(getResource("BUILD")), PolarLoader(PolarWorld())
         )
     }
 }
@@ -129,10 +130,10 @@ private fun readWorldInfo(file: ByteArray): WorldInfo {
     return WorldInfo(name, owner, spawnLoc?.let { Pos(it) })
 }
 
-data class WorldVarData(val map: MutableMap<String, ByteArray>) {
-    operator fun get(section: String) = map[section] ?: throw NullPointerException("Section with name $section does not exist!")
-    operator fun set(section: String, data: ByteArray) {
-        map[section] = data
+data class WorldVarData(val map: MutableMap<String, ByteArray>) : PersistentData {
+    override operator fun get(section: String) = map[section] ?: throw NullPointerException("Section with name $section does not exist!")
+    override operator fun set(section: String, bytes: ByteArray) {
+        map[section] = bytes
     }
 }
 private fun readVarData(entry: ArchiveEntry, stream: ArchiveInputStream, varData: WorldVarData) {

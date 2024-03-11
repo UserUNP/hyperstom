@@ -2,17 +2,16 @@
 
 package dev.bedcrab.hyperstom.code
 
-import com.extollit.collect.SetMultiMap
-import dev.bedcrab.hyperstom.world.WorldManager
 import kotlinx.coroutines.*
 import net.minestom.server.entity.Entity
 import net.minestom.server.event.trait.InstanceEvent
 import net.minestom.server.instance.Instance
+import java.util.UUID
 import kotlin.coroutines.EmptyCoroutineContext
 
 class ExecutionController {
     val scope = CoroutineScope(EmptyCoroutineContext)
-    val threads = SetMultiMap<HSEvent, Job>()
+    val threads = mutableMapOf<HSEvent, MutableSet<Job>>()
 }
 
 data class ExecContext(val instance: Instance, val inst: Instruction)
@@ -22,29 +21,30 @@ fun interface InstFunction {
 
 typealias Invokable = (ctx: InvokeContext) -> ExecutionController
 data class InvokeContext(
-    val msEvent: InstanceEvent?,
-    val world: WorldManager,
+    val worldId: UUID,
+    val hsEvent: InstanceEvent,
     val instructions: InstList,
     val selection: MutableList<Entity>
 )
 
 enum class HSEvent : Invokable {
     WORLD_INITIALIZATION {
-        override suspend fun getExecutee(ctx: InvokeContext): Instance {
+        override suspend fun validate(ctx: InvokeContext) {
             // TODO: disallow unsupported actions
-            return ctx.world.play
         }
     },
     ;
 
     override fun toString() = name
-    protected abstract suspend fun getExecutee(ctx: InvokeContext): Instance
+    protected abstract suspend fun validate(ctx: InvokeContext)
     override operator fun invoke(ctx: InvokeContext) = ExecutionController().apply {
-        threads.add(this@HSEvent, scope.launch(newSingleThreadContext("${ctx.world.id}:${this::class.simpleName}")) {
+        (threads[this@HSEvent] ?: mutableSetOf())
+            .add(scope.launch(newSingleThreadContext("${ctx.worldId}:${this::class.simpleName}")) {
             try {
-                val instance = getExecutee(ctx)
-                // TODO: selections & variables
+                validate(ctx)
+                val instance = ctx.hsEvent.instance
                 for (inst in ctx.instructions) inst(instance)
+                // TODO: selections & variables
             } catch (e: Exception) {
                 throw RuntimeException("Runtime exception.", e)
             }

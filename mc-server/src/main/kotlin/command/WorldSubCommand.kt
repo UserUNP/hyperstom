@@ -1,16 +1,16 @@
 package dev.bedcrab.hyperstom.command
 
+import dev.bedcrab.hyperstom.*
 import dev.bedcrab.hyperstom.code.EVENT_TYPE
 import dev.bedcrab.hyperstom.code.HSEvent
-import dev.bedcrab.hyperstom.code.getTypeEntry
-import dev.bedcrab.hyperstom.datastore.*
+import dev.bedcrab.hyperstom.code.rootCodeBlockEntry
 import dev.bedcrab.hyperstom.world.*
 import net.kyori.adventure.text.Component
 import net.minestom.server.command.builder.CommandContext
 import net.minestom.server.command.builder.arguments.Argument
 import net.minestom.server.command.builder.arguments.ArgumentType
 import net.minestom.server.entity.Player
-import java.util.*
+import java.util.UUID
 
 abstract class WorldSubCommand(name: String) : HSCommand(name) {
     protected var requiredMode: ModeHandler.Mode? = null
@@ -22,7 +22,7 @@ abstract class WorldSubCommand(name: String) : HSCommand(name) {
         val state = TagStore(player).use { it.read(StorePlayerState::class) }
         if (inHubWorld && state.id != HUB_WORLD_ID) throw RuntimeException("you cannot use this command here!")
         if (requiredMode != null && state.mode != requiredMode) throw RuntimeException("Must be in $requiredMode mode!")
-        val world = WorldManager.worlds[state.id]
+        val world = worlds[state.id]
         if (world == null) {
             player.kick("World id ${state.id} does not exist!")
             return@exec
@@ -49,7 +49,7 @@ class WorldCreateCommand : WorldSubCommand("create") {
             val files = WorldArchiveFiles.default(WorldInfo("${player.username}'s world", player.uuid, null))
             val id = UUID.randomUUID()
             writeWorldArchive(id, files)
-            WorldManager.worlds[id] = WorldManager(id, files)
+            worlds[id] = WorldManager(id, files)
             player.sendMessage { Component.text("Finished creating world $id.") }
         }
     }
@@ -60,9 +60,9 @@ class WorldInvokeCommand : WorldSubCommand("invoke") {
         Syntax(arrayOf(ArgumentType.Enum("event", HSEvent::class.java))) {
             val event = context.get<HSEvent>("event")
             val state = TagStore(player).use { it.read(StorePlayerState::class) }
-            val world = WorldManager.worlds[state.id] ?: throw NullPointerException("World with id ${state.id} does not exist!")
+            val world = getWorld(state.id)
             val code = PersistentStore(world).use { it.read(StoreWorldCode::class) }
-            code(null, getTypeEntry(EVENT_TYPE, event), world, mutableListOf(player))
+            code({ world.play }, rootCodeBlockEntry(EVENT_TYPE, event), world, mutableListOf(player))
         }
     }
 }

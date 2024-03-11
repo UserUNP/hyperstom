@@ -1,0 +1,14 @@
+metadata.format.version = "1.1"
+
+[libraries]
+minestom = "net.minestom:minestom-snapshots:7aaa85cd47"
+minestom-polar = "dev.hollowcube:polar:1.7.2"
+coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0"
+
+serialization-core = "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.6.3"
+serialization-cbor = "org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.6.3"
+compression = "org.apache.commons:commons-compress:1.24.0"
+
+logging = "io.github.oshai:kotlin-logging-jvm:5.1.0"
+logging-impl = "org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0"
+logging-core = "org.apache.logging.log4j:log4j-core:2.20.0"

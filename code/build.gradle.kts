@@ -1,17 +1,6 @@
-plugins {
-    kotlin("jvm") version "1.9.22"
-}
-
-group = "dev.bedcrab.hyperstom"
-version = "0.0.0-alpha"
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-}
-
-kotlin {
-    jvmToolchain(21)
+    implementation(project(":commons"))
+    implementation(libs.serialization.core)
+    implementation(libs.minestom)
+    implementation(libs.coroutines)
 }

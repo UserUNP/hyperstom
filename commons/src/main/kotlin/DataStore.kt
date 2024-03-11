@@ -1,12 +1,7 @@
 @file:Suppress("UnstableApiUsage", "UNCHECKED_CAST")
 
-package dev.bedcrab.hyperstom.datastore
+package dev.bedcrab.hyperstom
 
-import dev.bedcrab.hyperstom.TAG_STORE_ROOT
-import dev.bedcrab.hyperstom.cborByteArray
-import dev.bedcrab.hyperstom.cborReadByteArray
-import dev.bedcrab.hyperstom.world.WorldManager
-import dev.bedcrab.hyperstom.world.WorldVarData
 import net.minestom.server.tag.Tag
 import net.minestom.server.tag.Taggable
 import org.jglrxavpok.hephaistos.nbt.NBT
@@ -16,6 +11,8 @@ import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.jvm.jvmName
+
+private val TAG_STORE_ROOT = Tag.NBT("HYPERSTOM")
 
 abstract class DataStore<T>(private val dataProvider: StoreDataProvider<T>) : AutoCloseable {
     private val changes = mutableMapOf<String, Record>()
@@ -73,7 +70,7 @@ class TagStore(private val obj: Taggable) : DataStore<NBTCompound>(taggableDataP
 }
 
 interface PersistentStoreCompanion { val default: Record? }
-class PersistentStore(world: WorldManager) : DataStore<WorldVarData>(world) {
+class PersistentStore<T : PersistentData>(provider: StoreDataProvider<T>) : DataStore<T>(provider) {
     override fun <T : Record> read(type: KClass<T>): T {
         val annotation = getAnnotation(type)
         val bytes: ByteArray
@@ -87,4 +84,8 @@ class PersistentStore(world: WorldManager) : DataStore<WorldVarData>(world) {
     override fun save(change: Map.Entry<String, Record>) {
         data()[change.key] = cborByteArray(change.value)
     }
+}
+interface PersistentData {
+    operator fun get(section: String): ByteArray
+    operator fun set(section: String, bytes: ByteArray)
 }

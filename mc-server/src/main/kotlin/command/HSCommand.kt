@@ -1,21 +1,25 @@
 package dev.bedcrab.hyperstom.command
 
-import dev.bedcrab.hyperstom.datastore.StorePlayerState
-import dev.bedcrab.hyperstom.datastore.TagStore
-import dev.bedcrab.hyperstom.world.ModeHandler
+import dev.bedcrab.hyperstom.StorePlayerState
+import dev.bedcrab.hyperstom.ModeHandler
+import dev.bedcrab.hyperstom.TagStore
+import dev.bedcrab.hyperstom.world.BUILD_SPAWN_POINT
+import dev.bedcrab.hyperstom.world.DEV_SPAWN_POINT
 import dev.bedcrab.hyperstom.world.WorldManager
+import dev.bedcrab.hyperstom.world.getWorld
 import io.github.oshai.kotlinlogging.KotlinLogging
-import net.minestom.server.command.CommandManager
+import net.minestom.server.MinecraftServer
 import net.minestom.server.command.CommandSender
 import net.minestom.server.command.builder.Command
 import net.minestom.server.command.builder.CommandContext
 import net.minestom.server.command.builder.arguments.Argument
+import net.minestom.server.entity.GameMode
 import net.minestom.server.entity.Player
-import java.util.UUID
 
 private val LOGGER = KotlinLogging.logger {}
 
-fun initCommands(cmdManager: CommandManager) {
+fun initCommands() {
+    val cmdManager = MinecraftServer.getCommandManager()
     for (cmd in listOf(
         AboutCommand(), WorldCommand(),
         PlayCommand(), BuildCommand(), DevCommand(),
@@ -24,7 +28,12 @@ fun initCommands(cmdManager: CommandManager) {
 }
 
 private fun defaultExecutor(sender: CommandSender) = sender.sendMessage("Invalid syntax!")
-private fun getWorld(id: UUID) = WorldManager.worlds[id] ?: throw NullPointerException("World with id $id does not exist!")
+private fun setMode(store: TagStore, mode: ModeHandler.Mode): WorldManager {
+    val state = store.read(StorePlayerState::class)
+    val world = getWorld(state.id)
+    store.write(state.withMode(mode))
+    return world
+}
 
 abstract class HSCommand(name: String) : Command(name) {
     init {
@@ -57,12 +66,9 @@ class AboutCommand : Command("about") {
 class PlayCommand : HSCommand("play") {
     init {
         Syntax {
-            TagStore(player).use {
-                val state = it.read(StorePlayerState::class)
-                val world = getWorld(state.id)
-                it.write(state.withMode(ModeHandler.Mode.PLAY))
-                world.setInstanceToPlay(player)
-            }
+            val world = TagStore(player).use { setMode(it, ModeHandler.Mode.PLAY) }
+            player.setGameMode(GameMode.SURVIVAL)
+            player.setInstance(world.play, world.info.spawnLoc ?: BUILD_SPAWN_POINT)
         }
     }
 }
@@ -70,12 +76,9 @@ class PlayCommand : HSCommand("play") {
 class BuildCommand : HSCommand("build") {
     init {
         Syntax {
-            TagStore(player).use {
-                val state = it.read(StorePlayerState::class)
-                val world = getWorld(state.id)
-                it.write(state.withMode(ModeHandler.Mode.BUILD))
-                world.setInstanceToBuild(player)
-            }
+            val world = TagStore(player).use { setMode(it, ModeHandler.Mode.BUILD) }
+            player.setGameMode(GameMode.SURVIVAL)
+            player.setInstance(world.play, world.info.spawnLoc ?: BUILD_SPAWN_POINT)
         }
     }
 }
@@ -83,12 +86,9 @@ class BuildCommand : HSCommand("build") {
 class DevCommand : HSCommand("dev") {
     init {
         Syntax {
-            TagStore(player).use {
-                val state = it.read(StorePlayerState::class)
-                val world = getWorld(state.id)
-                it.write(state.withMode(ModeHandler.Mode.DEV))
-                world.setInstanceToDev(player)
-            }
+            val world = TagStore(player).use { setMode(it, ModeHandler.Mode.DEV) }
+            player.setGameMode(GameMode.SURVIVAL)
+            player.setInstance(world.play, world.info.spawnLoc ?: DEV_SPAWN_POINT)
         }
     }
 }

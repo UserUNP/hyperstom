@@ -1,11 +1,6 @@
-package dev.bedcrab.hyperstom.world
+package dev.bedcrab.hyperstom
 
-import dev.bedcrab.hyperstom.*
-import dev.bedcrab.hyperstom.code.CONNECTOR_MS_BLOCK
-import dev.bedcrab.hyperstom.code.CodeBlock
-import dev.bedcrab.hyperstom.code.isOpenBracket
-import dev.bedcrab.hyperstom.datastore.StorePlayerState
-import dev.bedcrab.hyperstom.datastore.TagStore
+import dev.bedcrab.hyperstom.code.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import net.minestom.server.coordinate.Point
 import net.minestom.server.event.Event
@@ -83,41 +78,36 @@ private object DevMode : ModeHandler {
         event.isCancelled = true
         val instance = event.player.instance
         val pos = event.blockPosition
+        val msBlock = event.block
 
-        val block = CodeBlock.from(event.block)
-        if (instance.getBlock(shiftPoint(pos, RIGHT_VEC)) != Block.AIR) {
-            throw RuntimeException("Invalid block placement!")
-        }
-        val (rootPos, rootBlock) = findRootBlock(pos, instance) ?: (null to null)
+        checkMinestomBlockPlacement(instance, pos)
+        val hsBlock = getCodeMinestomBlock(msBlock)
+        val (rootPos, rootBlock) = findMinestomRootBlock(pos, instance) ?: (null to null)
         // TODO: world code data
         if (rootPos != null && rootBlock != null) {
-            if (block.type.root) throw RuntimeException("Invalid block placement!")
-            val endBracketPos = findEndBracket(pos, instance) ?: throw RuntimeException("Invalid block placement!")
-            move(instance, shiftPoint(pos, FORWARD_VEC), endBracketPos, block.type.space)
-        } else if (!block.type.root) throw RuntimeException("Invalid block placement: expected an event/data block!")
-        block.place(instance,  pos, null)
+            if (hsBlock.type.root) throw RuntimeException("Invalid block placement!")
+            val endBracketPos = findMinestomEndBracket(pos, instance) ?: throw RuntimeException("Invalid block placement!")
+            move(instance, getConnectorMinestomPos(pos), endBracketPos, hsBlock.type.space)
+        } else if (!hsBlock.type.root) throw RuntimeException("Invalid block placement: expected an event/data block!")
+        instance.placeCodeBlock(msBlock, hsBlock, null, pos)
     }
 
     private fun breakBlock(event: PlayerBlockBreakEvent) {
         event.isCancelled = true
-        val block: CodeBlock = try { CodeBlock.from(event.block) } catch (_: Exception) { return }
+        val block: CodeBlock = try { getCodeMinestomBlock(event.block) } catch (_: Exception) { return }
         val instance = event.player.instance
         val pos = event.blockPosition
 
         instance.setBlock(pos, Block.AIR)
-        val connectorPos = shiftPoint(pos, FORWARD_VEC)
+        val connectorPos = getConnectorMinestomPos(pos)
         val connectorBlock = instance.getBlock(connectorPos)
-        val connectorIsBracket = isOpenBracket(connectorBlock)
+        val connectorIsBracket = connectorBlock == OPEN_BRACKET_MS_BLOCK
         if (connectorBlock == CONNECTOR_MS_BLOCK || connectorIsBracket) instance.setBlock(connectorPos, Block.AIR)
-        instance.setBlock(shiftPoint(pos, UP_VEC), Block.AIR)
-        instance.setBlock(shiftPoint(pos, LEFT_VEC), Block.AIR)
+        instance.setBlock(getContainerMinestomPos(pos), Block.AIR)
+        instance.setBlock(getInstVisMinestomPos(pos), Block.AIR)
 
         if (connectorIsBracket) {
-            val endBracketPos = findEndBracket(connectorPos, instance)
-            if (endBracketPos == null) {
-                event.player.sendMessage("WARNING: Couldn't find the ending bracket!")
-                return
-            }
+            val endBracketPos = findMinestomEndBracket(connectorPos, instance) ?: throw RuntimeException("Couldn't find the ending bracket")
             instance.setBlock(endBracketPos, Block.AIR)
             move(instance, connectorPos, endBracketPos, -block.type.space)
         }
@@ -129,9 +119,9 @@ private object DevMode : ModeHandler {
             val msBlock = instance.getBlock(currentPos)
             if (msBlock == Block.AIR) continue
             // position & block
-            val upPos = shiftPoint(currentPos, UP_VEC)
+            val upPos = getContainerMinestomPos(currentPos)
             val containerBlock = instance.getBlock(upPos)
-            val leftPos = shiftPoint(currentPos, LEFT_VEC)
+            val leftPos = getInstVisMinestomPos(currentPos)
             val instVisBlock = instance.getBlock(leftPos)
             instance.setBlock(currentPos, Block.AIR)
             instance.setBlock(upPos, Block.AIR)
