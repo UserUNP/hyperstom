@@ -1,8 +1,8 @@
 package dev.bedcrab.hyperstom.command
 
-import dev.bedcrab.hyperstom.StorePlayerState
+import dev.bedcrab.hyperstom.datastore.StorePlayerState
 import dev.bedcrab.hyperstom.ModeHandler
-import dev.bedcrab.hyperstom.TagStore
+import dev.bedcrab.hyperstom.datastore.TagStore
 import dev.bedcrab.hyperstom.world.BUILD_SPAWN_POINT
 import dev.bedcrab.hyperstom.world.DEV_SPAWN_POINT
 import dev.bedcrab.hyperstom.world.WorldManager
@@ -24,7 +24,7 @@ fun initCommands() {
         AboutCommand(), WorldCommand(),
         PlayCommand(), BuildCommand(), DevCommand(),
     )) cmdManager.register(cmd)
-    LOGGER.info { "Initialized ${cmdManager.commands.size} commands." }
+    LOGGER.info { "Registered ${cmdManager.commands.size} commands." }
 }
 
 private fun defaultExecutor(sender: CommandSender) = sender.sendMessage("Invalid syntax!")

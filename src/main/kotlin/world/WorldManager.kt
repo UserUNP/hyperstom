@@ -2,9 +2,10 @@
 
 package dev.bedcrab.hyperstom.world
 
-import dev.bedcrab.hyperstom.PersistentStore
-import dev.bedcrab.hyperstom.StoreDataProvider
+import dev.bedcrab.hyperstom.datastore.PersistentStore
+import dev.bedcrab.hyperstom.datastore.StoreDataProvider
 import dev.bedcrab.hyperstom.code.*
+import dev.bedcrab.hyperstom.datastore.StoreWorldCode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import net.minestom.server.MinecraftServer
 import net.minestom.server.coordinate.Pos
@@ -41,12 +42,14 @@ class WorldManager(val id: UUID, val files: WorldArchiveFiles) : StoreDataProvid
         instanceManager.registerSharedInstance(play)
         LOGGER.info { "Registered world $id." }
 
-        val testInstList = mutableListOf(Instruction(InstProperties.`bruh moner`))
+        val testInstList = mutableListOf(Instruction(InstProperties.PRINT_INSTRUCTIONS))
         val testTypeEntry = rootCodeBlockEntry(EVENT_TYPE, HSEvent.WORLD_INITIALIZATION)
         PersistentStore(this).use {
-            it.write(StoreWorldCode(mutableMapOf(
+            it.write(
+                StoreWorldCode(mutableMapOf(
                 testTypeEntry to testInstList
-            )))
+            ))
+            )
         }
     }
     override fun data() = files.varData

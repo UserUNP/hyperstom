@@ -7,7 +7,6 @@ import net.minestom.server.entity.Entity
 import net.minestom.server.event.trait.InstanceEvent
 import net.minestom.server.instance.Instance
 import java.util.UUID
-import kotlinx.serialization.Serializable
 import kotlin.coroutines.EmptyCoroutineContext
 
 class ExecutionController {
@@ -15,7 +14,7 @@ class ExecutionController {
     val threads = mutableMapOf<HSEvent, MutableSet<Job>>()
 }
 
-data class ExecContext(val instance: Instance, val inst: Instruction)
+data class ExecContext(val inst: Instruction, val instance: Instance, val list: InstList)
 fun interface InstFunction {
     operator fun invoke(ctx: ExecContext)
 }
@@ -30,21 +29,21 @@ data class InvokeContext(
 
 enum class HSEvent : Invokable {
     WORLD_INITIALIZATION {
-        override suspend fun validate(ctx: InvokeContext) {
+        override fun validate(ctx: InvokeContext) {
             // TODO: disallow unsupported actions
         }
     },
     ;
 
     override fun toString() = name
-    protected abstract suspend fun validate(ctx: InvokeContext)
+    protected open fun validate(ctx: InvokeContext) {}
     override operator fun invoke(ctx: InvokeContext) = ExecutionController().apply {
-        (threads[this@HSEvent] ?: mutableSetOf())
+        (threads[this@HSEvent] ?: mutableSetOf<Job>().also { threads[this@HSEvent] = it })
             .add(scope.launch(newSingleThreadContext("${ctx.worldId}:${this::class.simpleName}")) {
             try {
                 validate(ctx)
                 val instance = ctx.hsEvent.instance
-                for (inst in ctx.instructions) inst(instance)
+                for (inst in ctx.instructions) inst(instance, ctx.instructions)
                 // TODO: selections & variables
             } catch (e: Exception) {
                 throw RuntimeException("Runtime exception.", e)

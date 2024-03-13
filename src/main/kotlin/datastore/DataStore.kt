@@ -1,7 +1,9 @@
 @file:Suppress("UnstableApiUsage", "UNCHECKED_CAST")
 
-package dev.bedcrab.hyperstom
+package dev.bedcrab.hyperstom.datastore
 
+import dev.bedcrab.hyperstom.cborByteArray
+import dev.bedcrab.hyperstom.cborReadByteArray
 import net.minestom.server.tag.Tag
 import net.minestom.server.tag.Taggable
 import org.jglrxavpok.hephaistos.nbt.NBT
@@ -33,8 +35,7 @@ abstract class DataStore<T>(private val dataProvider: StoreDataProvider<T>) : Au
         }
     }
 }
-@Target(AnnotationTarget.CLASS)
-@Retention(AnnotationRetention.RUNTIME)
+@Target(AnnotationTarget.CLASS) @Retention(AnnotationRetention.RUNTIME)
 annotation class DataStoreRecord(val name: String)
 fun interface StoreDataProvider<T> { fun data(): T }
 

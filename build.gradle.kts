@@ -7,6 +7,18 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
+dependencies {
+    implementation(libs.logging)
+    implementation(libs.logging.impl)
+    implementation(libs.logging.core)
+    implementation(libs.minestom)
+    implementation(libs.minestom.polar)
+    implementation(libs.compression)
+    implementation(libs.serialization.core)
+    implementation(libs.serialization.cbor)
+    implementation(libs.coroutines)
+}
+
 allprojects {
     apply(plugin = "kotlin")
     apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
@@ -21,15 +33,6 @@ allprojects {
     kotlin {
         jvmToolchain(21)
     }
-}
-
-dependencies {
-    implementation(project(":mc-server"))
-    implementation(project(":world"))
-
-    implementation(libs.logging)
-    implementation(libs.logging.impl)
-    implementation(libs.logging.core)
 }
 
 tasks.named<ShadowJar>("shadowJar") {

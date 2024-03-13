@@ -2,7 +2,7 @@
 
 package dev.bedcrab.hyperstom.world
 
-import dev.bedcrab.hyperstom.PersistentData
+import dev.bedcrab.hyperstom.datastore.PersistentData
 import dev.bedcrab.hyperstom.getResource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import net.hollowcube.polar.PolarLoader
@@ -97,7 +97,7 @@ data class WorldArchiveFiles(
     fun devFile() = ByteArrayInputStream(PolarWriter.write(dev.world()))
     fun varDataFiles(): MutableMap<String, ByteArrayInputStream> {
         val map = mutableMapOf<String, ByteArrayInputStream>()
-        for ((section, data) in varData.map) map["${VAR_DATA_PREFIX}$section"] = ByteArrayInputStream(data)
+        for ((section, data) in varData.map) map["$VAR_DATA_PREFIX$section"] = ByteArrayInputStream(data)
         return map
     }
     companion object {
@@ -137,9 +137,7 @@ data class WorldVarData(val map: MutableMap<String, ByteArray>) : PersistentData
     }
 }
 private fun readVarData(entry: ArchiveEntry, stream: ArchiveInputStream, varData: WorldVarData) {
-    if (entry.isDirectory) LOGGER.info { "reading world var data:" }
     val bytes = stream.readBytes()
-    LOGGER.info { "  -> ${entry.name}: ${bytes.size}" }
     varData[entry.name.removePrefix(VAR_DATA_PREFIX)] = bytes
 }
 

@@ -1,5 +1,6 @@
-package dev.bedcrab.hyperstom
+package dev.bedcrab.hyperstom.datastore
 
+import dev.bedcrab.hyperstom.ModeHandler
 import org.jglrxavpok.hephaistos.nbt.NBT
 import java.util.UUID
 

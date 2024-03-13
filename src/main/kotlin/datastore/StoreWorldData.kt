@@ -1,8 +1,8 @@
-package dev.bedcrab.hyperstom.world
+package dev.bedcrab.hyperstom.datastore
 
-import dev.bedcrab.hyperstom.DataStoreRecord
-import dev.bedcrab.hyperstom.PersistentStoreCompanion
 import dev.bedcrab.hyperstom.code.*
+import dev.bedcrab.hyperstom.world.ContributorLevel
+import dev.bedcrab.hyperstom.world.WorldManager
 import kotlinx.serialization.Serializable
 import net.minestom.server.entity.Entity
 import net.minestom.server.event.trait.InstanceEvent
@@ -30,9 +30,8 @@ data class StoreWorldCode(private val map: MutableMap<RootCodeBlockEntry, InstLi
         msEvent: InstanceEvent, entry: RootCodeBlockEntry, world: WorldManager, selection: MutableList<Entity>
     ) {
         val type = getCodeBlockType(entry.type)
-        if (type == DATA_TYPE) throw RuntimeException("Data types aren't supported yet!")
-        val instructions = map[entry] ?: return
         val invokable = type(entry.data)
+        val instructions = map[entry] ?: return
         invokable(InvokeContext(world.id, msEvent, instructions, selection))
         // TODO: keep track of exec controllers
     }

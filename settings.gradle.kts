@@ -3,5 +3,3 @@ plugins {
 }
 
 rootProject.name = "hyperstom"
-include("commons", "code", "mc-server")
-include("world")
