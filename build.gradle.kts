@@ -7,6 +7,14 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
+group = "dev.bedcrab.hyperstom"
+version = "1.0.0-alpha"
+
+repositories {
+    mavenCentral()
+    maven { setUrl("https://jitpack.io") }
+}
+
 dependencies {
     implementation(libs.logging)
     implementation(libs.logging.impl)
@@ -19,20 +27,8 @@ dependencies {
     implementation(libs.coroutines)
 }
 
-allprojects {
-    apply(plugin = "kotlin")
-    apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
-    group = "dev.bedcrab.hyperstom"
-    version = "1.0.0-alpha"
-
-    repositories {
-        mavenCentral()
-        maven { setUrl("https://jitpack.io") }
-    }
-
-    kotlin {
-        jvmToolchain(21)
-    }
+kotlin {
+    jvmToolchain(21)
 }
 
 tasks.named<ShadowJar>("shadowJar") {
