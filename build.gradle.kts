@@ -16,15 +16,19 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.logging)
-    implementation(libs.logging.impl)
-    implementation(libs.logging.core)
-    implementation(libs.minestom)
-    implementation(libs.minestom.polar)
-    implementation(libs.compression)
-    implementation(libs.serialization.core)
-    implementation(libs.serialization.cbor)
-    implementation(libs.coroutines)
+    implementation("io.github.oshai:kotlin-logging-jvm:5.1.0")
+    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0")
+    implementation("org.apache.logging.log4j:log4j-core:2.20.0")
+
+    implementation("net.minestom:minestom-snapshots:7e59603d5f")
+    implementation("net.kyori:adventure-text-minimessage:4.16.0")
+    implementation("dev.hollowcube:polar:1.7.2")
+    
+    implementation("org.apache.commons:commons-compress:1.24.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.6.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.6.3")
 }
 
 kotlin {

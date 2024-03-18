@@ -8,7 +8,7 @@ import net.minestom.server.entity.Entity
 import net.minestom.server.event.trait.InstanceEvent
 import java.util.UUID
 
-@JvmRecord @Serializable @DataStoreRecord("contributors")
+@Serializable @DataStoreRecord("contributors")
 data class StoreWorldContributors(private val map: MutableMap<String, ContributorLevel>) {
     fun hasPerm(uuid: UUID, level: ContributorLevel) = map[uuid.toString()]?.hasPerm(level) ?: false
     operator fun set(uuid: UUID, level: ContributorLevel) {
@@ -20,7 +20,7 @@ data class StoreWorldContributors(private val map: MutableMap<String, Contributo
     }
 }
 
-@JvmRecord @Serializable @DataStoreRecord("code")
+@Serializable @DataStoreRecord("code")
 data class StoreWorldCode(private val map: MutableMap<RootCodeBlockEntry, InstList>) {
     operator fun set(entry: RootCodeBlockEntry, inst: Instruction) {
         val list = map[entry] ?: mutableListOf<Instruction>().also { map[entry] = it }
@@ -38,6 +38,6 @@ data class StoreWorldCode(private val map: MutableMap<RootCodeBlockEntry, InstLi
     // TODO: world specific logs that developers can view to debug their code
 
     companion object : PersistentStoreCompanion {
-        override val default = StoreWorldCode(mutableMapOf())
+        override val default = StoreWorldContributors(mutableMapOf())
     }
 }

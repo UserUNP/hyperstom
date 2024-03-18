@@ -7,10 +7,13 @@ import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.decodeFromHexString
 import kotlinx.serialization.encodeToHexString
 import kotlinx.serialization.serializer
+import net.kyori.adventure.text.minimessage.MiniMessage
 import net.minestom.server.coordinate.Point
 import net.minestom.server.coordinate.Vec
 import org.jglrxavpok.hephaistos.nbt.NBT
 import org.jglrxavpok.hephaistos.nbt.NBTCompound
+
+val MM = MiniMessage.miniMessage()
 
 fun getResource(path: String) = object {}::class.java.classLoader.getResourceAsStream(path) ?: throw NullPointerException("\"$path\" does not exist as a resource")
 

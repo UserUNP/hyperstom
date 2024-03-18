@@ -8,15 +8,16 @@ import net.minestom.server.coordinate.Point
 import net.minestom.server.coordinate.Vec
 import net.minestom.server.instance.Instance
 import net.minestom.server.instance.block.Block
+import net.minestom.server.item.Material
 
 private val LOGGER = KotlinLogging.logger {}
 
 fun getCodeBlockType(type: String) = nameToCodeBlockType[type] ?: throw RuntimeException("Unsupported code block type! $type")
 private val nameToCodeBlockType = mutableMapOf<String, CodeBlockType<*>>()
-val DATA_TYPE: CodeBlockType<Nothing> = CodeBlockType("DATA", true) { TODO("Data code block types aren't implemented yet!") }
-val EVENT_TYPE: CodeBlockType<HSEvent> = CodeBlockType("EVENT", true) { HSEvent.valueOf(it) }
-val ACTION_TYPE: CodeBlockType<Nothing> = CodeBlockType("ACTION", false)
-val SCOPED_TYPE: CodeBlockType<Nothing> = CodeBlockType("SCOPED", true)
+val DATA_BLOCK_TYPE = CodeBlockType("DATA", true) { TODO("Data code block types aren't implemented yet!") }
+val EVENT_BLOCK_TYPE = CodeBlockType("EVENT", true) { HSEvent.valueOf(it) }
+val ACTION_BLOCK_TYPE = CodeBlockType<Nothing>("ACTION", false)
+val SCOPED_BLOCK_TYPE = CodeBlockType<Nothing>("SCOPED", true)
 class CodeBlockType<T : Invokable>(val name: String, brackets: Boolean, private val getter: ((data: String) -> T)? = null) {
     val root = getter != null
     val space = if(brackets) 3 else 1 // the occupied space after the main block
@@ -25,11 +26,27 @@ class CodeBlockType<T : Invokable>(val name: String, brackets: Boolean, private 
 }
 
 enum class CodeBlock(val type: CodeBlockType<*>) {
-    FUNCTION(DATA_TYPE), PROCESS(DATA_TYPE),
-    WORLD_EVENT(EVENT_TYPE), PLAYER_EVENT(EVENT_TYPE), NPC_EVENT(EVENT_TYPE), DEV_EVENT(EVENT_TYPE),
-    WORLD_ACTION(ACTION_TYPE), PLAYER_ACTION(ACTION_TYPE), NPC_ACTION(ACTION_TYPE), VAR_ACTION(ACTION_TYPE),
-    IF_WORLD(SCOPED_TYPE), IF_PLAYER(SCOPED_TYPE), IF_NPC(SCOPED_TYPE), IF_VAR(SCOPED_TYPE),
-    TARGET(SCOPED_TYPE), REPEAT(SCOPED_TYPE),
+    FUNCTION(DATA_BLOCK_TYPE),
+    PROCESS(DATA_BLOCK_TYPE),
+
+    WORLD_EVENT(EVENT_BLOCK_TYPE),
+    PLAYER_EVENT(EVENT_BLOCK_TYPE),
+    NPC_EVENT(EVENT_BLOCK_TYPE),
+    DEV_EVENT(EVENT_BLOCK_TYPE),
+
+    WORLD_ACTION(ACTION_BLOCK_TYPE),
+    PLAYER_ACTION(ACTION_BLOCK_TYPE),
+    NPC_ACTION(ACTION_BLOCK_TYPE),
+    VAR_ACTION(ACTION_BLOCK_TYPE),
+    CONTROL(ACTION_BLOCK_TYPE),
+
+    IF_WORLD(SCOPED_BLOCK_TYPE),
+    IF_PLAYER(SCOPED_BLOCK_TYPE),
+    IF_NPC(SCOPED_BLOCK_TYPE),
+    IF_VAR(SCOPED_BLOCK_TYPE),
+
+    TARGET(SCOPED_BLOCK_TYPE),
+    REPEAT(SCOPED_BLOCK_TYPE),
     ;
     val label = name.replace("_", " ")
     init {
@@ -39,6 +56,13 @@ enum class CodeBlock(val type: CodeBlockType<*>) {
 
 fun <T : Invokable> rootCodeBlockEntry(type: CodeBlockType<T>, data: T) = RootCodeBlockEntry(type.name, data.toString())
 @Serializable data class RootCodeBlockEntry(val type: String, val data: String)
+
+fun initCodeBlocks() {
+    // kotlin is stupid and I have to reference them manually to initialize them
+    // without kotlin using a lazy initializing method
+    CodeBlock.entries
+    msBlockToCodeBlock.entries
+}
 
 val CONNECTOR_MS_BLOCK: Block = Block.STONE
 val ARGS_CONTAINER_MS_BLOCK: Block = Block.BARREL
@@ -57,6 +81,8 @@ fun getConnectorPos(origin: Point) = shiftPoint(origin, MS_FORWARD_VEC)
 fun getConnectorEndPos(origin: Point, type: CodeBlockType<*>) = shiftPoint(origin, MS_FORWARD_VEC, type.space.toDouble())
 fun getInstVisPos(origin: Point) = shiftPoint(origin, MS_LEFT_VEC)
 fun getCodeBlock(msBlock: Block) = msBlockToCodeBlock[msBlock] ?: throw RuntimeException("${msBlock.name()} is not a code block!")
+fun getMSBlock(hsBlock: CodeBlock) = msBlockToCodeBlock.keys.find { getCodeBlock(it) == hsBlock } ?: throw RuntimeException("Couldn't find Minestom block for code block $hsBlock")
+fun getCodeBlockMaterial(hsBlock: CodeBlock) = Material.fromNamespaceId(getMSBlock(hsBlock).namespace()) ?: throw RuntimeException("What!")
 private val msBlockToCodeBlock = mapOf(
     Block.LAPIS_BLOCK to CodeBlock.FUNCTION,
     Block.EMERALD_BLOCK to CodeBlock.PROCESS,
@@ -70,6 +96,7 @@ private val msBlockToCodeBlock = mapOf(
     Block.COBBLESTONE to CodeBlock.PLAYER_ACTION,
     Block.MOSSY_COBBLESTONE to CodeBlock.NPC_ACTION,
     Block.RAW_IRON_BLOCK to CodeBlock.VAR_ACTION,
+    Block.DEAD_BUBBLE_CORAL_BLOCK to CodeBlock.CONTROL,
 
     Block.NETHER_BRICKS to CodeBlock.IF_WORLD,
     Block.OAK_PLANKS to CodeBlock.IF_PLAYER,
@@ -86,7 +113,7 @@ fun Instance.placeCodeBlock(msBlock: Block, hsBlock: CodeBlock, inst: InstProper
     setBlock(pos, msBlock)
     setBlock(getInstVisPos(pos), instVisBlock)
     setBlock(getContainerPos(pos), ARGS_CONTAINER_MS_BLOCK)
-    if (hsBlock.type == ACTION_TYPE) setBlock(getConnectorPos(pos), CONNECTOR_MS_BLOCK)
+    if (hsBlock.type == ACTION_BLOCK_TYPE) setBlock(getConnectorPos(pos), CONNECTOR_MS_BLOCK)
     else {
         setBlock(getConnectorPos(pos), OPEN_BRACKET_MS_BLOCK)
         setBlock(getConnectorEndPos(pos, hsBlock.type), CLOSE_BRACKET_MS_BLOCK)

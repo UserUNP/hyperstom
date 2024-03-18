@@ -1,9 +1,11 @@
 package dev.bedcrab.hyperstom
 
-import dev.bedcrab.hyperstom.code.*
+import dev.bedcrab.hyperstom.code.initCodeBlocks
 import dev.bedcrab.hyperstom.command.initCommands
 import dev.bedcrab.hyperstom.datastore.StorePlayerState
 import dev.bedcrab.hyperstom.datastore.TagStore
+import dev.bedcrab.hyperstom.listener.ModeHandler
+import dev.bedcrab.hyperstom.listener.initModeHandlers
 import dev.bedcrab.hyperstom.world.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import net.minestom.server.MinecraftServer
@@ -25,20 +27,16 @@ fun main() {
     LOGGER.info { "\t*** Hyperstom - v$VERSION ***" }
     val server = MinecraftServer.init()
 
-    initCodeBlockTypes()
+    initCodeBlocks()
     LOGGER.info { "\t> Initialized code blocks." }
+    initInventories()
+    LOGGER.info { "\t> Initialized inventories." }
     initWorlds()
     LOGGER.info { "\t> Initialized worlds." }
     initMCServer()
     LOGGER.info { "\t> Initialized MC server." }
 
     server.start("0.0.0.0", 25565)
-}
-
-fun initCodeBlockTypes() {
-    // kotlin is stupid and I have to reference these manually to initialize them
-    // without kotlin using a lazy initializing method
-    DATA_TYPE; EVENT_TYPE; ACTION_TYPE; SCOPED_TYPE
 }
 
 fun initWorlds() {

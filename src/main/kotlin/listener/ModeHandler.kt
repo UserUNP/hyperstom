@@ -1,4 +1,4 @@
-package dev.bedcrab.hyperstom
+package dev.bedcrab.hyperstom.listener
 
 import dev.bedcrab.hyperstom.datastore.StorePlayerState
 import dev.bedcrab.hyperstom.datastore.TagStore
@@ -70,6 +70,7 @@ private object DevMode : ModeHandler {
             it.player.sendMessage("ERROR: ${e.message}")
             it.isCancelled = true
         } }
+        initDevEvents(eventNode)
     }
 
     private fun placeBlock(event: PlayerBlockPlaceEvent) {

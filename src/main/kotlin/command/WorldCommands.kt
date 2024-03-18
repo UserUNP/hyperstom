@@ -1,10 +1,11 @@
 package dev.bedcrab.hyperstom.command
 
 import dev.bedcrab.hyperstom.*
-import dev.bedcrab.hyperstom.code.EVENT_TYPE
+import dev.bedcrab.hyperstom.code.EVENT_BLOCK_TYPE
 import dev.bedcrab.hyperstom.code.HSEvent
 import dev.bedcrab.hyperstom.code.rootCodeBlockEntry
 import dev.bedcrab.hyperstom.datastore.*
+import dev.bedcrab.hyperstom.listener.ModeHandler
 import dev.bedcrab.hyperstom.world.*
 import net.kyori.adventure.text.Component
 import net.minestom.server.command.builder.CommandContext
@@ -63,7 +64,7 @@ class WorldInvokeCommand : WorldSubCommand("invoke") {
             val state = TagStore(player).use { it.read(StorePlayerState::class) }
             val world = getWorld(state.id)
             val code = PersistentStore(world).use { it.read(StoreWorldCode::class) }
-            code({ world.play }, rootCodeBlockEntry(EVENT_TYPE, event), world, mutableListOf(player))
+            code({ world.play }, rootCodeBlockEntry(EVENT_BLOCK_TYPE, event), world, mutableListOf(player))
         }
     }
 }

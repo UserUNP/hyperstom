@@ -1,13 +1,14 @@
 package dev.bedcrab.hyperstom.command
 
 import dev.bedcrab.hyperstom.datastore.StorePlayerState
-import dev.bedcrab.hyperstom.ModeHandler
+import dev.bedcrab.hyperstom.listener.ModeHandler
 import dev.bedcrab.hyperstom.datastore.TagStore
 import dev.bedcrab.hyperstom.world.BUILD_SPAWN_POINT
 import dev.bedcrab.hyperstom.world.DEV_SPAWN_POINT
 import dev.bedcrab.hyperstom.world.WorldManager
 import dev.bedcrab.hyperstom.world.getWorld
 import io.github.oshai.kotlinlogging.KotlinLogging
+import net.kyori.adventure.text.Component
 import net.minestom.server.MinecraftServer
 import net.minestom.server.command.CommandSender
 import net.minestom.server.command.builder.Command
@@ -15,6 +16,8 @@ import net.minestom.server.command.builder.CommandContext
 import net.minestom.server.command.builder.arguments.Argument
 import net.minestom.server.entity.GameMode
 import net.minestom.server.entity.Player
+import net.minestom.server.item.ItemStack
+import net.minestom.server.item.Material
 
 private val LOGGER = KotlinLogging.logger {}
 
@@ -28,7 +31,7 @@ fun initCommands() {
 }
 
 private fun defaultExecutor(sender: CommandSender) = sender.sendMessage("Invalid syntax!")
-private fun setMode(store: TagStore, mode: ModeHandler.Mode): WorldManager {
+private fun setModeGetWorld(store: TagStore, mode: ModeHandler.Mode): WorldManager {
     val state = store.read(StorePlayerState::class)
     val world = getWorld(state.id)
     store.write(state.withMode(mode))
@@ -59,15 +62,16 @@ abstract class HSCommand(name: String) : Command(name) {
 
 class AboutCommand : Command("about") {
     init {
-        setDefaultExecutor { sender, _ -> sender.sendMessage("https://github.com/Hyperstom/Hyperstom") }
+        setDefaultExecutor { sender, _ -> sender.sendMessage("https://github.com/BedCrabDev/Hyperstom") }
     }
 }
 
 class PlayCommand : HSCommand("play") {
     init {
         Syntax {
-            val world = TagStore(player).use { setMode(it, ModeHandler.Mode.PLAY) }
+            val world = TagStore(player).use { setModeGetWorld(it, ModeHandler.Mode.PLAY) }
             player.setGameMode(GameMode.SURVIVAL)
+            player.inventory.clear()
             player.setInstance(world.play, world.info.spawnLoc ?: BUILD_SPAWN_POINT)
         }
     }
@@ -76,8 +80,9 @@ class PlayCommand : HSCommand("play") {
 class BuildCommand : HSCommand("build") {
     init {
         Syntax {
-            val world = TagStore(player).use { setMode(it, ModeHandler.Mode.BUILD) }
+            val world = TagStore(player).use { setModeGetWorld(it, ModeHandler.Mode.BUILD) }
             player.setGameMode(GameMode.CREATIVE)
+            player.inventory.clear()
             player.setInstance(world.build, world.info.spawnLoc ?: BUILD_SPAWN_POINT)
         }
     }
@@ -86,8 +91,11 @@ class BuildCommand : HSCommand("build") {
 class DevCommand : HSCommand("dev") {
     init {
         Syntax {
-            val world = TagStore(player).use { setMode(it, ModeHandler.Mode.DEV) }
+            val world = TagStore(player).use { setModeGetWorld(it, ModeHandler.Mode.DEV) }
             player.setGameMode(GameMode.CREATIVE)
+            val inventory = player.inventory
+            inventory.clear()
+            inventory.setItemStack(9, ItemStack.of(Material.DIAMOND).withDisplayName(Component.text("Code Blocks")) )
             player.setInstance(world.dev, world.info.spawnLoc ?: DEV_SPAWN_POINT)
         }
     }
