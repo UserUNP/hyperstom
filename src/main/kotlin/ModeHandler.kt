@@ -1,4 +1,4 @@
-package dev.bedcrab.hyperstom.listener
+package dev.bedcrab.hyperstom
 
 import dev.bedcrab.hyperstom.datastore.StorePlayerState
 import dev.bedcrab.hyperstom.datastore.TagStore
@@ -9,7 +9,9 @@ import net.minestom.server.event.EventFilter
 import net.minestom.server.event.EventNode
 import net.minestom.server.event.player.PlayerBlockBreakEvent
 import net.minestom.server.event.player.PlayerBlockPlaceEvent
+import net.minestom.server.event.player.PlayerUseItemEvent
 import net.minestom.server.instance.Instance
+import net.minestom.server.item.Material
 
 private val LOGGER = KotlinLogging.logger {}
 
@@ -50,7 +52,7 @@ private object PlayMode : ModeHandler {
 
 private object BuildMode : ModeHandler {
     override val eventNode = EventNode.tag(
-        "modeHandler_build", EventFilter.PLAYER,
+        "ModeHandler_build", EventFilter.PLAYER,
         TagStore.tag(StorePlayerState::class), StorePlayerState.Companion::usingBuild
     )
     override fun init() {}
@@ -58,7 +60,7 @@ private object BuildMode : ModeHandler {
 
 private object DevMode : ModeHandler {
     override val eventNode = EventNode.tag(
-        "modeHandler_dev", EventFilter.PLAYER,
+        "ModeHandler_dev", EventFilter.PLAYER,
         TagStore.tag(StorePlayerState::class), StorePlayerState.Companion::usingDev
     )
     override fun init() {
@@ -70,7 +72,11 @@ private object DevMode : ModeHandler {
             it.player.sendMessage("ERROR: ${e.message}")
             it.isCancelled = true
         } }
-        initDevEvents(eventNode)
+        eventNode.addListener(PlayerUseItemEvent::class.java, DevMode::onItemClick)
+    }
+
+    private fun onItemClick(event: PlayerUseItemEvent) {
+        if (event.itemStack.material() == Material.DIAMOND) event.player.openInventory(HSInventory.CODE_BLOCKS.inv)
     }
 
     private fun placeBlock(event: PlayerBlockPlaceEvent) {

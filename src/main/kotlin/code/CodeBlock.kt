@@ -2,13 +2,13 @@ package dev.bedcrab.hyperstom.code
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import dev.bedcrab.hyperstom.cborSerialize
+import dev.bedcrab.hyperstom.getCodeBlock
 import dev.bedcrab.hyperstom.shiftPoint
 import kotlinx.serialization.Serializable
 import net.minestom.server.coordinate.Point
 import net.minestom.server.coordinate.Vec
 import net.minestom.server.instance.Instance
 import net.minestom.server.instance.block.Block
-import net.minestom.server.item.Material
 
 private val LOGGER = KotlinLogging.logger {}
 
@@ -57,13 +57,6 @@ enum class CodeBlock(val type: CodeBlockType<*>) {
 fun <T : Invokable> rootCodeBlockEntry(type: CodeBlockType<T>, data: T) = RootCodeBlockEntry(type.name, data.toString())
 @Serializable data class RootCodeBlockEntry(val type: String, val data: String)
 
-fun initCodeBlocks() {
-    // kotlin is stupid and I have to reference them manually to initialize them
-    // without kotlin using a lazy initializing method
-    CodeBlock.entries
-    msBlockToCodeBlock.entries
-}
-
 val CONNECTOR_MS_BLOCK: Block = Block.STONE
 val ARGS_CONTAINER_MS_BLOCK: Block = Block.BARREL
 val INST_VIS_MS_BLOCK = Block.OAK_WALL_SIGN.withProperty("facing", "west")
@@ -80,32 +73,6 @@ fun getContainerPos(origin: Point) = shiftPoint(origin, MS_UP_VEC)
 fun getConnectorPos(origin: Point) = shiftPoint(origin, MS_FORWARD_VEC)
 fun getConnectorEndPos(origin: Point, type: CodeBlockType<*>) = shiftPoint(origin, MS_FORWARD_VEC, type.space.toDouble())
 fun getInstVisPos(origin: Point) = shiftPoint(origin, MS_LEFT_VEC)
-fun getCodeBlock(msBlock: Block) = msBlockToCodeBlock[msBlock] ?: throw RuntimeException("${msBlock.name()} is not a code block!")
-fun getMSBlock(hsBlock: CodeBlock) = msBlockToCodeBlock.keys.find { getCodeBlock(it) == hsBlock } ?: throw RuntimeException("Couldn't find Minestom block for code block $hsBlock")
-fun getCodeBlockMaterial(hsBlock: CodeBlock) = Material.fromNamespaceId(getMSBlock(hsBlock).namespace()) ?: throw RuntimeException("What!")
-private val msBlockToCodeBlock = mapOf(
-    Block.LAPIS_BLOCK to CodeBlock.FUNCTION,
-    Block.EMERALD_BLOCK to CodeBlock.PROCESS,
-
-    Block.REDSTONE_BLOCK to CodeBlock.WORLD_EVENT,
-    Block.DIAMOND_BLOCK to CodeBlock.PLAYER_EVENT,
-    Block.GOLD_BLOCK to CodeBlock.NPC_EVENT,
-    Block.COPPER_BLOCK to CodeBlock.DEV_EVENT,
-
-    Block.NETHERRACK to CodeBlock.WORLD_ACTION,
-    Block.COBBLESTONE to CodeBlock.PLAYER_ACTION,
-    Block.MOSSY_COBBLESTONE to CodeBlock.NPC_ACTION,
-    Block.RAW_IRON_BLOCK to CodeBlock.VAR_ACTION,
-    Block.DEAD_BUBBLE_CORAL_BLOCK to CodeBlock.CONTROL,
-
-    Block.NETHER_BRICKS to CodeBlock.IF_WORLD,
-    Block.OAK_PLANKS to CodeBlock.IF_PLAYER,
-    Block.BRICKS to CodeBlock.IF_NPC,
-    Block.OBSIDIAN to CodeBlock.IF_VAR,
-
-    Block.TARGET to CodeBlock.TARGET,
-    Block.PRISMARINE_BRICKS to CodeBlock.REPEAT,
-)
 
 fun Instance.placeCodeBlock(msBlock: Block, hsBlock: CodeBlock, inst: InstProperties?, pos: Point) {
     val instVis = MinestomInstVisual(hsBlock.label, inst?.label ?: "", "", "")

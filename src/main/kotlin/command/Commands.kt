@@ -1,7 +1,7 @@
 package dev.bedcrab.hyperstom.command
 
 import dev.bedcrab.hyperstom.datastore.StorePlayerState
-import dev.bedcrab.hyperstom.listener.ModeHandler
+import dev.bedcrab.hyperstom.ModeHandler
 import dev.bedcrab.hyperstom.datastore.TagStore
 import dev.bedcrab.hyperstom.world.BUILD_SPAWN_POINT
 import dev.bedcrab.hyperstom.world.DEV_SPAWN_POINT
