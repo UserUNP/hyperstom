@@ -2,52 +2,61 @@
 
 package dev.bedcrab.hyperstom.code
 
+import dev.bedcrab.hyperstom.world.WorldManager
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
-import net.minestom.server.entity.Entity
 import net.minestom.server.event.trait.InstanceEvent
 import net.minestom.server.instance.Instance
-import java.util.UUID
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.reflect.KClass
+
+private val LOGGER = KotlinLogging.logger {}
 
 class ExecutionController {
     val scope = CoroutineScope(EmptyCoroutineContext)
-    val threads = mutableMapOf<HSEvent, MutableSet<Job>>()
+    val events = mutableMapOf<HSEvent, MutableSet<Job>>()
+    //TODO: val processes = mutableMapOf<HSProcess, MutableSet<Job>>()
 }
 
-data class ExecContext(val inst: Instruction, val instance: Instance, val list: InstList)
-fun interface InstFunction {
-    operator fun invoke(ctx: ExecContext)
-}
-
-typealias Invokable = (ctx: InvokeContext) -> ExecutionController
+data class ExecContext(val instList: InstList, val inst: Instruction, val instance: Instance)
+typealias InstFunction = ExecContext.() -> Unit
+typealias Invokable = (InvokeContext) -> ExecutionController
 data class InvokeContext(
-    val worldId: UUID,
-    val hsEvent: InstanceEvent,
+    val world: WorldManager,
+    val msEvent: InstanceEvent,
     val instructions: InstList,
-    val selection: MutableList<Entity>
 )
+data class EventInvokedContext<T : InstanceEvent>(val event: T, val world: WorldManager)
 
-enum class HSEvent : Invokable {
-    WORLD_INITIALIZATION {
-        override fun validate(ctx: InvokeContext) {
-            // TODO: disallow unsupported actions
-        }
-    },
-    ;
+fun getEvents() = nameToHSEvent.values as Collection<HSEvent>
+fun getEvent(name: String) = nameToHSEvent[name] ?: throw RuntimeException("Unsupported event value! $name")
+private val nameToHSEvent = mutableMapOf<String, HSEvent>()
+val WORLD_INIT_EVENT = HSEvent("WORLD_INITIALIZATION", InstanceEvent::class, setOf(WORLD_NAME_EVENT_VAL))
 
+data class HSEvent(
+    val name: String,
+    val baseEventType: KClass<*>,
+    val eventValues: Set<EventValue<*>> = setOf(),
+    val eventTargets: Set<EventTarget<*>> = setOf(),
+    /* TODO: disallow unsupported actions in certain events */
+) : Invokable {
     override fun toString() = name
-    protected open fun validate(ctx: InvokeContext) {}
+    init {
+        nameToHSEvent[name] = this
+        LOGGER.info { "Registered event value type $name@${hashCode()}" }
+    }
+
     override operator fun invoke(ctx: InvokeContext) = ExecutionController().apply {
-        (threads[this@HSEvent] ?: mutableSetOf<Job>().also { threads[this@HSEvent] = it })
-            .add(scope.launch(newSingleThreadContext("${ctx.worldId}:${this::class.simpleName}")) {
-            try {
-                validate(ctx)
-                val instance = ctx.hsEvent.instance
-                for (inst in ctx.instructions) inst(instance, ctx.instructions)
-                // TODO: selections & variables
-            } catch (e: Exception) {
-                throw RuntimeException("Runtime exception.", e)
-            }
-        })
+        (events[this@HSEvent] ?: mutableSetOf<Job>().also { events[this@HSEvent] = it })
+            .add(scope.launch(newSingleThreadContext("${ctx.world.id}:$name")) {
+                try {
+                    val computedEventValues = eventValues.associateWith { it(ctx) }
+                    val computedEventTargets = eventTargets.associateWith { it(ctx) }
+                    for (inst in ctx.instructions) inst(ctx.msEvent.instance, ctx.instructions)
+                    // TODO: selections & variables
+                } catch (e: Exception) {
+                    throw RuntimeException("Runtime exception.", e)
+                }
+            })
     }
 }

@@ -28,6 +28,12 @@ fun main() {
     LOGGER.info { "\t> Initialized code blocks." }
     initCodeValueTypes()
     LOGGER.info { "\t> Initialized code values." }
+    initCodeTargets()
+    LOGGER.info { "\t> Initialized event targets." }
+    initEventValues()
+    LOGGER.info { "\t> Initialized event values." }
+    initEvents()
+    LOGGER.info { "\t> Initialized code events." }
     initWorlds()
     LOGGER.info { "\t> Initialized worlds." }
     initMCServer()

@@ -1,6 +1,7 @@
 package dev.bedcrab.hyperstom.code
 
 import dev.bedcrab.hyperstom.code.impl.assignVar
+import dev.bedcrab.hyperstom.code.impl.parametersTest
 import dev.bedcrab.hyperstom.code.impl.printInstructions
 import kotlinx.serialization.Serializable
 import net.minestom.server.instance.Instance
@@ -35,12 +36,18 @@ typealias InstVisual<T> = () -> T
     )))
 }
 
-@Serializable data class Instruction(val props: InstProperties) { // TODO: add args (and params)
-    operator fun invoke(instance: Instance, list: InstList) = props.exec(ExecContext(this, instance, list))
+class Parameters(private val raw: Map<String, CodeValueType<*>>) {
+    constructor(vararg pairs: Pair<String, CodeValueType<*>>) : this(mapOf(*pairs))
+    fun single(name: String) = raw[name]
 }
 
-enum class InstProperties(val fullName: String, val exec: InstFunction) {
+@Serializable data class Instruction(val props: InstProperties) { // TODO: add args (and params)
+    operator fun invoke(instance: Instance, list: InstList) = props.exec(ExecContext(list, this, instance))
+}
+
+enum class InstProperties(val fullName: String, val exec: InstFunction, val params: Parameters = Parameters()) {
     PRINT_INSTRUCTIONS("Print Instructions", printInstructions),
+    PARAMETERS_TEST("Parameters Test", parametersTest, Parameters("first" to STR_VALUE_TYPE)),
     `=`("Assign Variable", assignVar),
     ;
     val label = name.replace("_", " ")

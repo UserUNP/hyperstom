@@ -1,6 +1,7 @@
 package dev.bedcrab.hyperstom
 
 import dev.bedcrab.hyperstom.code.*
+import net.kyori.adventure.text.Component
 import net.minestom.server.instance.block.Block
 import net.minestom.server.inventory.Inventory
 import net.minestom.server.inventory.InventoryType
@@ -9,13 +10,15 @@ import net.minestom.server.item.Material
 
 private lateinit var msBlockToCodeBlock: Map<Block, CodeBlock>
 private lateinit var valTypeToItemStack: Map<CodeValueType<*>, ItemStack>
+private lateinit var hsEventToItemStack: Map<HSEvent, ItemStack>
+private lateinit var eventTargetToComponent: Map<EventTarget<*>, Component>
+private lateinit var eventValToComponent: Map<EventValue<*>, Component>
 
 fun getCodeBlock(msBlock: Block) = msBlockToCodeBlock[msBlock] ?: throw RuntimeException("${msBlock.name()} is not a code block!")
 fun getMSBlock(hsBlock: CodeBlock) = msBlockToCodeBlock.keys.find { getCodeBlock(it) == hsBlock } ?: throw RuntimeException("Couldn't find Minestom block for code block $hsBlock")
-
 fun getCodeBlockMaterial(hsBlock: CodeBlock) = Material.fromNamespaceId(getMSBlock(hsBlock).namespace()) ?: throw RuntimeException("What!")
-
 fun getCodeValueItem(type: CodeValueType<*>) = valTypeToItemStack[type]
+fun getHSEventItem(event: HSEvent) = hsEventToItemStack[event] ?: throw RuntimeException("What!")
 
 fun initCodeBlocks() {
     msBlockToCodeBlock = mapOf(
@@ -51,16 +54,43 @@ fun initCodeValueTypes() {
         VAR_VALUE_TYPE to ItemStack.of(Material.MAGMA_CREAM).withDisplayName(MM.deserialize("<gradient:#709f0f:#e3f000:#fe9e00>Variable")),
         CONST_VALUE_TYPE to ItemStack.of(Material.FIRE_CHARGE).withDisplayName(MM.deserialize("<gradient:#7f5f5f:#e4660c:red>Constant<#5fccfc>\\<>")),
         EVENT_VALUE_TYPE to ItemStack.of(Material.NAME_TAG).withDisplayName(MM.deserialize("<gradient:#ffd070:#ffffaf:#ffd070>Event Value")),
+        TARGET_VALUE_TYPE to ItemStack.of(Material.BOW).withDisplayName(MM.deserialize("Target")), //TODO: fancy colors
         FUNC_VALUE_TYPE to ItemStack.of(Material.FIREWORK_STAR).withDisplayName(MM.deserialize("<gradient:#0adadf:#0f7fff:#0acacf:#0f7fff>Function ref")),
+
         STR_VALUE_TYPE to ItemStack.of(Material.STRING).withDisplayName(MM.deserialize("<red>Str")),
         INT_VALUE_TYPE to ItemStack.of(Material.SLIME_BALL).withDisplayName(MM.deserialize("<red>Int")),
         FLOAT_VALUE_TYPE to ItemStack.of(Material.CLAY_BALL).withDisplayName(MM.deserialize("<red>Float")),
         BOOL_VALUE_TYPE to ItemStack.of(Material.COMPARATOR).withDisplayName(MM.deserialize("<red>Bool")),
         LIST_VALUE_TYPE to ItemStack.of(Material.GLOBE_BANNER_PATTERN).withDisplayName(MM.deserialize("<red>List<#5fccfc>\\<>")),
         EXPR_VALUE_TYPE to ItemStack.of(Material.GLOBE_BANNER_PATTERN).withDisplayName(MM.deserialize("<red>Expr<#5fccfc>\\<>")),
+
         ITEM_VALUE_TYPE to ItemStack.of(Material.ITEM_FRAME).withDisplayName(MM.deserialize("<gold>Item")),
         TEXT_VALUE_TYPE to ItemStack.of(Material.WRITABLE_BOOK).withDisplayName(MM.deserialize("<green>Txt")),
         PARTICLE_VALUE_TYPE to ItemStack.of(Material.WHITE_DYE).withDisplayName(MM.deserialize("<purple>Particle")),
+    )
+}
+
+fun initEvents() {
+    hsEventToItemStack = mapOf(
+        WORLD_INIT_EVENT to ItemStack.of(Material.REDSTONE_TORCH).withDisplayName(MM.deserialize("World Initialization")),
+    )
+}
+
+fun initCodeTargets() {
+    eventTargetToComponent = mapOf(
+        PLAYERS_ALL_TARGET to MM.deserialize("All Players"),
+        PLAYER_RAND_TARGET to MM.deserialize("Random Player"),
+        NPC_ALL_TARGET to MM.deserialize("All NPCs"),
+        NPC_RAND_TARGET to MM.deserialize("Random NPC"),
+        DEFAULT_TARGET to MM.deserialize("Default"),
+
+        ENTITY_CLICKED_TARGET to MM.deserialize("Clicked Entity"),
+    )
+}
+
+fun initEventValues() {
+    eventValToComponent = mapOf(
+        WORLD_NAME_EVENT_VAL to MM.deserialize("World Name"),
     )
 }
 

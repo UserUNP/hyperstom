@@ -4,7 +4,6 @@ import dev.bedcrab.hyperstom.code.*
 import dev.bedcrab.hyperstom.world.ContributorLevel
 import dev.bedcrab.hyperstom.world.WorldManager
 import kotlinx.serialization.Serializable
-import net.minestom.server.entity.Entity
 import net.minestom.server.event.trait.InstanceEvent
 import java.util.UUID
 
@@ -27,12 +26,12 @@ data class StoreWorldCode(private val map: MutableMap<RootCodeBlockEntry, InstLi
         list.add(inst)
     }
     operator fun invoke(
-        msEvent: InstanceEvent, entry: RootCodeBlockEntry, world: WorldManager, selection: MutableList<Entity>
+        msEvent: InstanceEvent, entry: RootCodeBlockEntry, world: WorldManager
     ) {
         val type = getCodeBlockType(entry.type)
-        val invokable = type(entry.data)
         val instructions = map[entry] ?: return
-        invokable(InvokeContext(world.id, msEvent, instructions, selection))
+        val invokable = type(entry.data)
+        /*val controller = */invokable(InvokeContext(world, msEvent, instructions))
         // TODO: keep track of exec controllers
     }
     // TODO: world specific logs that developers can view to debug their code

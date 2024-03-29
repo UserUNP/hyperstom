@@ -43,12 +43,12 @@ class WorldManager(val id: UUID, val files: WorldArchiveFiles) : StoreDataProvid
         LOGGER.info { "Registered world $id." }
 
         val testInstList = mutableListOf(Instruction(InstProperties.PRINT_INSTRUCTIONS))
-        val testTypeEntry = rootCodeBlockEntry(EVENT_BLOCK_TYPE, HSEvent.WORLD_INITIALIZATION)
+        val testTypeEntry = rootCodeBlockEntry(EVENT_BLOCK_TYPE, WORLD_INIT_EVENT)
         PersistentStore(this).use {
             it.write(
                 StoreWorldCode(mutableMapOf(
-                testTypeEntry to testInstList
-            ))
+                    testTypeEntry to testInstList
+                ))
             )
         }
     }

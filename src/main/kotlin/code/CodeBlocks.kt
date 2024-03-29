@@ -15,10 +15,10 @@ private val LOGGER = KotlinLogging.logger {}
 fun getCodeBlockType(type: String) = nameToCodeBlockType[type] ?: throw RuntimeException("Unsupported code block type! $type")
 private val nameToCodeBlockType = mutableMapOf<String, CodeBlockType<*>>()
 val DATA_BLOCK_TYPE = CodeBlockType("DATA", true) { TODO("Data code block types aren't implemented yet!") }
-val EVENT_BLOCK_TYPE = CodeBlockType("EVENT", true) { HSEvent.valueOf(it) }
+val EVENT_BLOCK_TYPE = CodeBlockType("EVENT", true) { getEvent(it) }
 val ACTION_BLOCK_TYPE = CodeBlockType<Nothing>("ACTION", false)
 val SCOPED_BLOCK_TYPE = CodeBlockType<Nothing>("SCOPED", true)
-class CodeBlockType<T : Invokable>(val name: String, brackets: Boolean, private val getter: ((data: String) -> T)? = null) {
+data class CodeBlockType<T : Invokable>(val name: String, val brackets: Boolean, private val getter: ((data: String) -> T)? = null) {
     val root = getter != null
     val space = if(brackets) 3 else 1 // the occupied space after the main block
     operator fun invoke(data: String) = getter?.let { it(data) } ?: throw RuntimeException("This code block is not of a root type!")
