@@ -13,6 +13,7 @@ import net.minestom.server.extras.MojangAuth
 import java.io.File
 import java.util.UUID
 import kotlin.concurrent.thread
+import kotlin.time.measureTime
 
 private const val VERSION = "1.0.0-alpha"
 private val LOGGER = KotlinLogging.logger {}
@@ -23,15 +24,15 @@ val HUB_WORLD_ID = UUID(0, 0)
 fun main() {
     LOGGER.info { "\t*** Hyperstom - v$VERSION ***" }
     val server = MinecraftServer.init()
-
-    LOGGER.info { "\t> Initializing data." }
-    initData()
-    LOGGER.info { "\t> Initializing worlds." }
-    initWorlds()
-    LOGGER.info { "\t> Initializing MC server." }
-    initMCServer()
-
-    server.start("0.0.0.0", 25565)
+    LOGGER.info { "\t> Took ${measureTime {
+        LOGGER.info { "\t> Initializing data." }
+        initData()
+        LOGGER.info { "\t> Initializing worlds." }
+        initWorlds()
+        LOGGER.info { "\t> Initializing MC server." }
+        initMCServer()
+        server.start("0.0.0.0", 25565)
+    }}s" }
 }
 
 fun initWorlds() {

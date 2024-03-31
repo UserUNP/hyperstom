@@ -3,15 +3,11 @@ package dev.bedcrab.hyperstom
 import dev.bedcrab.hyperstom.datastore.StorePlayerState
 import dev.bedcrab.hyperstom.datastore.TagStore
 import io.github.oshai.kotlinlogging.KotlinLogging
-import net.minestom.server.coordinate.Point
 import net.minestom.server.event.Event
 import net.minestom.server.event.EventFilter
 import net.minestom.server.event.EventNode
 import net.minestom.server.event.player.PlayerBlockBreakEvent
 import net.minestom.server.event.player.PlayerBlockPlaceEvent
-import net.minestom.server.event.player.PlayerUseItemEvent
-import net.minestom.server.instance.Instance
-import net.minestom.server.item.Material
 
 private val LOGGER = KotlinLogging.logger {}
 
@@ -63,32 +59,5 @@ private object DevMode : ModeHandler {
         "ModeHandler_dev", EventFilter.PLAYER,
         TagStore.tag(StorePlayerState::class), StorePlayerState.Companion::usingDev
     )
-    override fun init() {
-        eventNode.addListener(PlayerBlockPlaceEvent::class.java) { try { placeBlock(it) } catch (e: Exception) {
-            it.player.sendMessage("ERROR: ${e.message}")
-            it.isCancelled = true
-        } }
-        eventNode.addListener(PlayerBlockBreakEvent::class.java) { try { breakBlock(it) } catch (e: Exception) {
-            it.player.sendMessage("ERROR: ${e.message}")
-            it.isCancelled = true
-        } }
-        eventNode.addListener(PlayerUseItemEvent::class.java, DevMode::onItemClick)
-    }
-
-    private fun onItemClick(event: PlayerUseItemEvent) {
-        if (event.itemStack.material() == Material.DIAMOND) event.player.openInventory(HSInventory.CODE_BLOCKS.inv)
-    }
-
-    private fun placeBlock(event: PlayerBlockPlaceEvent) {
-        TODO("Block placement & world code")
-    }
-
-    private fun breakBlock(event: PlayerBlockBreakEvent) {
-        TODO("Block placement & world code")
-    }
-
-    private fun move(instance: Instance, start: Point, end: Point, amount: Int?) {
-        TODO("Block placement & world code")
-        // FORWARD & BACKWARD are in the Z axis
-    }
+    override fun init() {}
 }

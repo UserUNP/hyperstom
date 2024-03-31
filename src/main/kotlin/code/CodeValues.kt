@@ -45,7 +45,7 @@ data class CodeValueType<T>(val name: String, private val reader: (input: String
 
 class AdvancedHSValue<T>(data: String, reader: (d: String) -> T?) {
     private val parts = data.split(";")
-    val type = parts[0].ifEmpty { throw RuntimeException("Unspecified type for a value of an advanced type!") }.let(::getCodeValueType)
+    val type = getCodeValueType(parts[0].ifEmpty { throw RuntimeException("Unspecified type for a value of an advanced type!") })
     val hsVal = reader(Base64.decode(parts[1].ifEmpty { throw RuntimeException("What!") }).toString(Charsets.UTF_8)) ?: throw RuntimeException("Invalid advanced value!")
 }
 

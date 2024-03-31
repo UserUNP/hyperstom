@@ -47,7 +47,6 @@ data class HSEvent(
                     val computedEventValues = eventValues.associateWith { it(ctx) }
                     val computedEventTargets = eventTargets.associateWith { it(ctx) }
                     for (inst in ctx.instructions) inst(ctx.msEvent.instance, ctx.instructions)
-                    // TODO: selections & variables
                 } catch (e: Exception) {
                     throw RuntimeException("Runtime exception.", e)
                 }
