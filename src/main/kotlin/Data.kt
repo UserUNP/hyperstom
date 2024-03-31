@@ -1,12 +1,23 @@
 package dev.bedcrab.hyperstom
 
 import dev.bedcrab.hyperstom.code.*
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.kyori.adventure.text.Component
 import net.minestom.server.instance.block.Block
 import net.minestom.server.inventory.Inventory
 import net.minestom.server.inventory.InventoryType
 import net.minestom.server.item.ItemStack
 import net.minestom.server.item.Material
+
+private val LOGGER = KotlinLogging.logger {}
+
+fun initData() {
+    initCodeBlocks()
+    initCodeValueTypes()
+    initCodeTargets()
+    initEventValues()
+    initEvents()
+}
 
 private lateinit var msBlockToCodeBlock: Map<Block, CodeBlock>
 private lateinit var valTypeToItemStack: Map<CodeValueType<*>, ItemStack>
@@ -44,6 +55,7 @@ fun initCodeBlocks() {
         Block.TARGET to CodeBlock.TARGET,
         Block.PRISMARINE_BRICKS to CodeBlock.REPEAT,
     )
+    LOGGER.info { "Registered ${msBlockToCodeBlock.size} code blocks." }
 }
 
 fun initCodeValueTypes() {
@@ -68,6 +80,7 @@ fun initCodeValueTypes() {
         TEXT_VALUE_TYPE to ItemStack.of(Material.WRITABLE_BOOK).withDisplayName(MM.deserialize("<green>Txt")),
         PARTICLE_VALUE_TYPE to ItemStack.of(Material.WHITE_DYE).withDisplayName(MM.deserialize("<purple>Particle")),
     )
+    LOGGER.info { "Registered ${valTypeToItemStack.size} code value types." }
 }
 
 fun initEvents() {
@@ -86,12 +99,14 @@ fun initCodeTargets() {
 
         ENTITY_CLICKED_TARGET to MM.deserialize("Clicked Entity"),
     )
+    LOGGER.info { "Registered ${eventTargetToComponent.size} event targets." }
 }
 
 fun initEventValues() {
     eventValToComponent = mapOf(
         WORLD_NAME_EVENT_VAL to MM.deserialize("World Name"),
     )
+    LOGGER.info { "Registered ${eventValToComponent.size} event values." }
 }
 
 enum class HSInventory(type: InventoryType, label: String) {

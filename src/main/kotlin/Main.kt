@@ -24,20 +24,12 @@ fun main() {
     LOGGER.info { "\t*** Hyperstom - v$VERSION ***" }
     val server = MinecraftServer.init()
 
-    initCodeBlocks()
-    LOGGER.info { "\t> Initialized code blocks." }
-    initCodeValueTypes()
-    LOGGER.info { "\t> Initialized code values." }
-    initCodeTargets()
-    LOGGER.info { "\t> Initialized event targets." }
-    initEventValues()
-    LOGGER.info { "\t> Initialized event values." }
-    initEvents()
-    LOGGER.info { "\t> Initialized code events." }
+    LOGGER.info { "\t> Initializing data." }
+    initData()
+    LOGGER.info { "\t> Initializing worlds." }
     initWorlds()
-    LOGGER.info { "\t> Initialized worlds." }
+    LOGGER.info { "\t> Initializing MC server." }
     initMCServer()
-    LOGGER.info { "\t> Initialized MC server." }
 
     server.start("0.0.0.0", 25565)
 }

@@ -3,14 +3,11 @@
 package dev.bedcrab.hyperstom.code
 
 import dev.bedcrab.hyperstom.world.WorldManager
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import net.minestom.server.event.trait.InstanceEvent
 import net.minestom.server.instance.Instance
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.reflect.KClass
-
-private val LOGGER = KotlinLogging.logger {}
 
 class ExecutionController {
     val scope = CoroutineScope(EmptyCoroutineContext)
@@ -41,10 +38,7 @@ data class HSEvent(
     /* TODO: disallow unsupported actions in certain events */
 ) : Invokable {
     override fun toString() = name
-    init {
-        nameToHSEvent[name] = this
-        LOGGER.info { "Registered event value type $name@${hashCode()}" }
-    }
+    init { nameToHSEvent[name] = this }
 
     override operator fun invoke(ctx: InvokeContext) = ExecutionController().apply {
         (events[this@HSEvent] ?: mutableSetOf<Job>().also { events[this@HSEvent] = it })

@@ -1,6 +1,5 @@
 package dev.bedcrab.hyperstom.code
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import dev.bedcrab.hyperstom.cborSerialize
 import dev.bedcrab.hyperstom.getCodeBlock
 import dev.bedcrab.hyperstom.shiftPoint
@@ -9,8 +8,6 @@ import net.minestom.server.coordinate.Point
 import net.minestom.server.coordinate.Vec
 import net.minestom.server.instance.Instance
 import net.minestom.server.instance.block.Block
-
-private val LOGGER = KotlinLogging.logger {}
 
 fun getCodeBlockType(type: String) = nameToCodeBlockType[type] ?: throw RuntimeException("Unsupported code block type! $type")
 private val nameToCodeBlockType = mutableMapOf<String, CodeBlockType<*>>()
@@ -49,9 +46,6 @@ enum class CodeBlock(val type: CodeBlockType<*>) {
     REPEAT(SCOPED_BLOCK_TYPE),
     ;
     val label = name.replace("_", " ")
-    init {
-        LOGGER.info { "Registered code block $name with type ${type.name}@${type.hashCode()}" }
-    }
 }
 
 fun <T : Invokable> rootCodeBlockEntry(type: CodeBlockType<T>, data: T) = RootCodeBlockEntry(type.name, data.toString())

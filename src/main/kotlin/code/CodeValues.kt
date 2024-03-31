@@ -3,14 +3,11 @@
 package dev.bedcrab.hyperstom.code
 
 import dev.bedcrab.hyperstom.MM
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.Serializable
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.reflect.KClass
 import kotlin.reflect.jvm.internal.impl.resolve.constants.NullValue
-
-private val LOGGER = KotlinLogging.logger {}
 
 fun getCodeValueType(type: String) = nameToCodeValueType[type] ?: throw RuntimeException("Unsupported code value type! $type")
 private val nameToCodeValueType = mutableMapOf<String, CodeValueType<*>>()
@@ -43,10 +40,7 @@ private inline fun <reified T> regType(name: String, noinline reader: (input: St
 data class CodeValueType<T>(val name: String, private val reader: (input: String) -> T, private val writer: (input: T) -> String) {
     operator fun invoke(input: String) = reader(input)
     fun serialize(input: T) = writer(input)
-    init {
-        nameToCodeValueType[name] = this
-        LOGGER.info { "Registered code value type $name@${hashCode()}" }
-    }
+    init { nameToCodeValueType[name] = this }
 }
 
 class AdvancedHSValue<T>(data: String, reader: (d: String) -> T?) {

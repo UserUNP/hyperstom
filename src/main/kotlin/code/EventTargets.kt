@@ -2,15 +2,12 @@
 
 package dev.bedcrab.hyperstom.code
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import net.minestom.server.entity.Entity
 import net.minestom.server.entity.Player
 import net.minestom.server.event.player.PlayerEntityInteractEvent
 import net.minestom.server.event.trait.EntityInstanceEvent
 import net.minestom.server.event.trait.InstanceEvent
 import kotlin.reflect.KClass
-
-private val LOGGER = KotlinLogging.logger {}
 
 fun getCodeTarget(name: String) = nameToEventTarget[name] ?: throw RuntimeException("Unsupported code target! $name")
 private val nameToEventTarget = mutableMapOf<String, EventTarget<*>>()
@@ -31,8 +28,5 @@ data class EventTarget<T : InstanceEvent>(val name: String, private val eventTyp
         return get(getTargetCtx)
     }
 
-    init {
-        nameToEventTarget[name] = this
-        LOGGER.info { "Registered event target type $name@${hashCode()}" }
-    }
+    init { nameToEventTarget[name] = this }
 }

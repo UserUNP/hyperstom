@@ -1,10 +1,7 @@
 package dev.bedcrab.hyperstom.code
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import net.minestom.server.event.trait.InstanceEvent
 import kotlin.reflect.KClass
-
-private val LOGGER = KotlinLogging.logger {}
 
 fun getEventVal(name: String) = nameToEventVal[name] ?: throw RuntimeException("Unsupported code target! $name")
 private val nameToEventVal = mutableMapOf<String, EventValue<*>>()
@@ -19,8 +16,5 @@ data class EventValue<T : InstanceEvent>(val name: String, private val eventType
         return get(getEventValCtx)
     }
 
-    init {
-        nameToEventVal[name] = this
-        LOGGER.info { "Registered event value type $name@${hashCode()}" }
-    }
+    init { nameToEventVal[name] = this }
 }
