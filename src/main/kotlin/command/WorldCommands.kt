@@ -1,4 +1,4 @@
-ackage userunp.hyperstom.command
+package userunp.hyperstom.command
 
 import userunp.hyperstom.datastore.*
 import userunp.hyperstom.code.getEvents
