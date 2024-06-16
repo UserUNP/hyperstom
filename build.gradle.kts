@@ -2,12 +2,12 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     application
-    kotlin("jvm") version "1.9.22"
-    kotlin("plugin.serialization") version "1.9.22"
+    kotlin("jvm") version "2.0.0"
+    kotlin("plugin.serialization") version "2.0.0"
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-group = "dev.bedcrab.hyperstom"
+group = "userunp.hyperstom"
 version = "1.0.0-alpha"
 
 repositories {
@@ -16,19 +16,20 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.oshai:kotlin-logging-jvm:5.1.0")
-    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0")
-    implementation("org.apache.logging.log4j:log4j-core:2.20.0")
+    implementation("io.github.oshai:kotlin-logging-jvm:6.0.9")
+    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1")
+    implementation("org.apache.logging.log4j:log4j-core:2.23.1")
 
-    implementation("net.minestom:minestom-snapshots:7e59603d5f")
-    implementation("net.kyori:adventure-text-minimessage:4.16.0")
-    implementation("dev.hollowcube:polar:1.7.2")
-    
-    implementation("org.apache.commons:commons-compress:1.24.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    implementation("net.minestom:minestom-snapshots:0f81bc31ff")
+    implementation("net.kyori:adventure-text-minimessage:4.17.0")
+    implementation("dev.hollowcube:polar:1.10.0")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.6.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.6.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.7.0")
+
+    implementation("org.apache.commons:commons-compress:1.26.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+    implementation(kotlin("reflect"))
 }
 
 kotlin {
@@ -43,6 +44,6 @@ tasks.named<ShadowJar>("shadowJar") {
 }
 
 application {
-    mainClass.set("dev.bedcrab.hyperstom.MainKt")
+    mainClass.set("userunp.hyperstom.MainKt")
     tasks.run.get().workingDir = File(rootProject.projectDir, ".run")
 }

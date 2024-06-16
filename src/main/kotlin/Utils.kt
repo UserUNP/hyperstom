@@ -1,36 +1,48 @@
 @file:OptIn(ExperimentalSerializationApi::class)
 
-package dev.bedcrab.hyperstom
+package userunp.hyperstom
 
-import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.*
 import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.decodeFromHexString
-import kotlinx.serialization.encodeToHexString
-import kotlinx.serialization.serializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
 import net.kyori.adventure.text.minimessage.MiniMessage
-import net.minestom.server.coordinate.Point
-import net.minestom.server.coordinate.Vec
-import org.jglrxavpok.hephaistos.nbt.NBT
-import org.jglrxavpok.hephaistos.nbt.NBTCompound
+import userunp.hyperstom.code.CodeValBox
+import userunp.hyperstom.code.codeValPolymorphic
+
+/// cbor serialization stuff
+
+private val module = SerializersModule {
+    polymorphic(CodeValBox::class, builderAction = codeValPolymorphic)
+}
+
+private val cbor = Cbor { serializersModule = module }
+
+fun <T : Any> cborByteArray(obj: T) = cbor.encodeToByteArray(serializer(obj::class.java), obj)
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> cborReadByteArray(type: Class<T>, bytes: ByteArray): T = cbor.decodeFromByteArray(serializer(type), bytes) as T
+
+interface Identifiable { val name: String }
+abstract class IdentifiableSerializer<T : Identifiable>(protected val get: (name: String) -> T) : KSerializer<T> {
+    override val descriptor = PrimitiveSerialDescriptor("Identifiable", PrimitiveKind.STRING)
+    override fun deserialize(decoder: Decoder) = get(decoder.decodeString())
+    override fun serialize(encoder: Encoder, value: T) = encoder.encodeString(value.name)
+}
+
+/// misc
 
 val MM = MiniMessage.miniMessage()
 
-fun getResource(path: String) = object {}::class.java.classLoader.getResourceAsStream(path) ?: throw NullPointerException("\"$path\" does not exist as a resource")
+fun getResource(path: String) = object {}::class.java.classLoader.getResourceAsStream(path)
+    ?: throw NullPointerException("\"$path\" does not exist as a resource")
 
-fun <T : Any> cborByteArray(obj: T) = Cbor.encodeToByteArray(serializer(obj::class.java), obj)
-@Suppress("UNCHECKED_CAST")
-fun <T : Any> cborReadByteArray(type: Class<T>, bytes: ByteArray): T = Cbor.decodeFromByteArray(serializer(type), bytes) as T
-inline fun <reified T> cborSerialize(obj: T, nbt: NBTCompound?): NBTCompound {
-    if (nbt == null) throw NullPointerException("Failed to get nbt!")
-    return nbt.toMutableCompound().set("d", NBT.String(Cbor.encodeToHexString<T>(obj))).toCompound()
-}
-inline fun <reified T> cborDeserialize(nbt: NBT): T {
-    assert(nbt is NBTCompound) { "Not an NBT compound!" }
-    val d = (nbt as NBTCompound).getString("d") ?: throw NullPointerException("No data field!")
-    return Cbor.decodeFromHexString<T>(d)
-}
-
-fun shiftPoint(point: Point, dir: Vec, length: Double = 1.0): Point {
-    val norm = dir.normalize()
-    return point.add(norm.x * length, norm.y * length, norm.z * length)
+fun bytesToHumanReadable(bytes: Int) = when {
+    bytes >= 1 shl 30 -> "%.2f GB".format(bytes.toFloat() / (1 shl 30))
+    bytes >= 1 shl 20 -> "%.2f MB".format(bytes.toFloat() / (1 shl 20))
+    bytes >= 1 shl 10 -> "%.2f kB".format(bytes.toFloat() / (1 shl 10))
+    else -> "$bytes bytes"
 }

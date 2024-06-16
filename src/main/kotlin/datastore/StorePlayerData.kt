@@ -1,29 +1,31 @@
-package dev.bedcrab.hyperstom.datastore
+package userunp.hyperstom.datastore
 
-import dev.bedcrab.hyperstom.ModeHandler
-import org.jglrxavpok.hephaistos.nbt.NBT
+import net.kyori.adventure.nbt.BinaryTag
+import net.kyori.adventure.nbt.IntBinaryTag
+import userunp.hyperstom.WorldMode
 import java.util.UUID
+
+fun inPlayMode(state: StorePlayerState?) = state?.mode == WorldMode.PLAY
+fun inBuildMode(state: StorePlayerState?) = state?.mode == WorldMode.BUILD
+fun inDevMode(state: StorePlayerState?) = state?.mode == WorldMode.DEV
 
 @JvmRecord
 @DataStoreRecord("state")
 data class StorePlayerState(val modeIndex: Int, val id: UUID) {
-    val mode get() = ModeHandler.Mode.entries[modeIndex]
-    fun withMode(newMode: ModeHandler.Mode): StorePlayerState {
+    val mode get() = WorldMode.entries[modeIndex]
+    fun withMode(newMode: WorldMode): StorePlayerState {
         if (mode == newMode) throw RuntimeException("Already in ${mode.name} mode!")
         return StorePlayerState(newMode.ordinal, id)
     }
 
     companion object : TagStoreCompanion {
-        override fun defaultFunc(missing: String): NBT {
+        override fun defaultFunc(missing: String): BinaryTag {
             return when(missing) {
-                "mode" -> NBT.Int(ModeHandler.Mode.PLAY.ordinal)
+                "modeIndex" -> IntBinaryTag.intBinaryTag(WorldMode.PLAY.ordinal)
                 "id" -> throw NullPointerException("Player not in a world!")
-                else -> throw RuntimeException("Unexpected value: $missing")
+                else -> throw RuntimeException("Unexpected value! $missing")
             }
         }
 
-        fun usingPlay(state: StorePlayerState?) = state?.mode == ModeHandler.Mode.PLAY
-        fun usingBuild(state: StorePlayerState?) = state?.mode == ModeHandler.Mode.BUILD
-        fun usingDev(state: StorePlayerState?) = state?.mode == ModeHandler.Mode.DEV
     }
 }

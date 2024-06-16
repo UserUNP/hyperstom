@@ -1,24 +1,71 @@
-package dev.bedcrab.hyperstom.code
+package userunp.hyperstom.code
 
-import dev.bedcrab.hyperstom.code.impl.parametersTest
-import dev.bedcrab.hyperstom.code.impl.printInstructions
 import kotlinx.serialization.Serializable
+import net.minestom.server.entity.Entity
 import net.minestom.server.instance.Instance
+import userunp.hyperstom.Identifiable
+import userunp.hyperstom.code.impl.*
+import kotlin.reflect.cast
 
-typealias InstList = MutableList<Instruction>
+val EMPTY_ARGS = Arguments()
+private val NULL_VALUE_SET = mutableListOf(NULL_VALUE)
 
-@Serializable data class Instruction(val props: InstProperties) { // TODO: add args (and params)
-    operator fun invoke(instance: Instance, list: InstList) = props.exec(ExecContext(list, this, instance))
+data class InstContext(
+    val controller: ExecController,
+    val inst: Instruction,
+    val instance: Instance,
+    val target: Set<Entity>,
+)
+interface InstFunction {
+    val params: Array<out Parameter<out CodeValBox>>
+    operator fun invoke(ctx: InstContext)
 }
 
-enum class InstProperties(val exec: InstFunction, val params: Map<String, Parameter<*>> = mapOf()) {
-    PRINT_INSTRUCTIONS(printInstructions),
-    PARAMETERS_TEST(parametersTest, mapOf(param("first", STR_VALUE_TYPE))),
+typealias InstList = MutableList<Instruction>
+typealias InstLabelMap = MutableMap<InstListLabel, InstList>
+@Serializable data class Instruction(
+    val props: InstProperties,
+    val args: Arguments,
+    val target: EventTarget<*> = TARGET_NONE,
+) {
+    init {
+        for (p in props.exec.params) {
+            val valuesSet = args.map[p.name]
+                ?: if (p.optional) NULL_VALUE_SET else throw RuntimeException("Missing required argument! ${p.name}")
+            for (value in valuesSet) if (value.type != p.type) {
+                throw RuntimeException("Expected ${p.type.name} but got ${value.type} instead!")
+            }
+            args.map[p.name] = valuesSet
+        }
+    }
+    operator fun invoke(
+        controller: ExecController,
+        instance: Instance,
+        target: Set<Entity>,
+    ) = props.exec(InstContext(controller, this, instance, target))
+}
+
+enum class InstProperties(
+    val exec: InstFunction,
+    val targetClass: TargetClass = TargetClass.ALL,
+) {
+    PRINT_INSTRUCTIONS(PrintInstructions),
+    DEBUG_INST(DebugInstruction),
     ;
 }
 
-// short names so intellij doesn't bloat the line with parameter hints
-private fun <T> param(n: String, t: CodeValueType<T>, o: Boolean = false, p: Boolean = false)
-    = n to Parameter(n, t, o, p)
-data class Parameter<T>(val name: String, val type: CodeValueType<T>, val optional: Boolean, val plural: Boolean) {
+@Serializable data class Arguments(val map: MutableMap<String, MutableList<out CodeValue<*>>>) {
+    constructor(vararg pairs: Pair<String, MutableList<CodeValue<*>>>) : this(mutableMapOf(*pairs))
+    fun <T : CodeValBox> single(p: Parameter<T>): T {
+        val arg = (map[p.name] ?: throw RuntimeException("No such parameter! $p"))[0]
+        if (p.type != arg.type) throw RuntimeException("Expected ${p.type.name}, got ${arg.type.name} instead! ${p.name}")
+        return p.type.typeClass.cast(arg.value)
+    }
 }
+
+data class Parameter<T : CodeValBox>(
+    override val name: String,
+    val type: CodeValueType<T>,
+    val optional: Boolean = false,
+    val plural: Boolean = false
+) : Identifiable

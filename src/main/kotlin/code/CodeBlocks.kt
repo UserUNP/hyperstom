@@ -1,43 +1,43 @@
-package dev.bedcrab.hyperstom.code
+package userunp.hyperstom.code
 
 import kotlinx.serialization.Serializable
 
-fun getCodeBlockType(type: String) = nameToCodeBlockType[type] ?: throw RuntimeException("Unsupported code block type! $type")
-private val nameToCodeBlockType = mutableMapOf<String, CodeBlockType<*>>()
-val DATA_BLOCK_TYPE = CodeBlockType("DATA", true) { TODO("Data code block types aren't implemented yet!") }
-val EVENT_BLOCK_TYPE = CodeBlockType("EVENT", true) { getEvent(it) }
-val ACTION_BLOCK_TYPE = CodeBlockType<Nothing>("ACTION", false)
-val SCOPED_BLOCK_TYPE = CodeBlockType<Nothing>("SCOPED", true)
-data class CodeBlockType<T : Invokable>(val name: String, val brackets: Boolean, private val getter: ((data: String) -> T)? = null) {
-    val root = getter != null
-    operator fun invoke(data: String) = getter?.let { it(data) } ?: throw RuntimeException("This code block is not of a root type!")
-    init { nameToCodeBlockType[name] = this }
+enum class CodeBlockType(val brackets: Boolean, private val getter: ((data: String) -> Invokable)? = null) {
+    DATA(true, { HSProcess(it) }), // only case for invoking a data code block is for a process
+    EVENT(true, { getEvent(it) }),
+    ACTION(false), SCOPED(true),
+    ;
+
+    fun get(data: String) = getter?.let { it(data) }
+        ?: throw RuntimeException("This code block is not of a root type!")
 }
 
-enum class CodeBlock(val type: CodeBlockType<*>) {
-    FUNCTION(DATA_BLOCK_TYPE),
-    PROCESS(DATA_BLOCK_TYPE),
+enum class CodeBlock(val type: CodeBlockType) {
+    FUNCTION(CodeBlockType.DATA),
+    PROCESS(CodeBlockType.DATA),
 
-    WORLD_EVENT(EVENT_BLOCK_TYPE),
-    PLAYER_EVENT(EVENT_BLOCK_TYPE),
-    NPC_EVENT(EVENT_BLOCK_TYPE),
-    DEV_EVENT(EVENT_BLOCK_TYPE),
+    WORLD_EVENT(CodeBlockType.EVENT),
+    PLAYER_EVENT(CodeBlockType.EVENT),
+    NPC_EVENT(CodeBlockType.EVENT),
+    DEV_EVENT(CodeBlockType.EVENT),
 
-    WORLD_ACTION(ACTION_BLOCK_TYPE),
-    PLAYER_ACTION(ACTION_BLOCK_TYPE),
-    NPC_ACTION(ACTION_BLOCK_TYPE),
-    VAR_ACTION(ACTION_BLOCK_TYPE),
-    CONTROL(ACTION_BLOCK_TYPE),
+    WORLD_ACTION(CodeBlockType.ACTION),
+    PLAYER_ACTION(CodeBlockType.ACTION),
+    NPC_ACTION(CodeBlockType.ACTION),
+    VAR_ACTION(CodeBlockType.ACTION),
+    CONTROL(CodeBlockType.SCOPED),
 
-    IF_WORLD(SCOPED_BLOCK_TYPE),
-    IF_PLAYER(SCOPED_BLOCK_TYPE),
-    IF_NPC(SCOPED_BLOCK_TYPE),
-    IF_VAR(SCOPED_BLOCK_TYPE),
+    IF_WORLD(CodeBlockType.SCOPED),
+    IF_PLAYER(CodeBlockType.SCOPED),
+    IF_NPC(CodeBlockType.SCOPED),
+    IF_VAR(CodeBlockType.SCOPED),
 
-    TARGET(SCOPED_BLOCK_TYPE),
-    REPEAT(SCOPED_BLOCK_TYPE),
+    TARGET(CodeBlockType.SCOPED),
+    REPEAT(CodeBlockType.SCOPED),
     ;
 }
 
-fun <T : Invokable> rootCodeBlockEntry(type: CodeBlockType<T>, data: T) = RootCodeBlockEntry(type.name, data.toString())
-@Serializable data class RootCodeBlockEntry(val type: String, val data: String)
+fun eventLabel(e: HSEvent<*>) = InstListLabel(CodeBlockType.EVENT, e.name)
+fun dataLabel(name: String) = InstListLabel(CodeBlockType.DATA, name)
+fun scopedLabel(name: String) = InstListLabel(CodeBlockType.SCOPED, name)
+@Serializable data class InstListLabel(val type: CodeBlockType, val name: String)

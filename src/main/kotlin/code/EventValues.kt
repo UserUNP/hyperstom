@@ -1,20 +1,26 @@
-package dev.bedcrab.hyperstom.code
+@file:Suppress("UnstableApiUsage")
 
+package userunp.hyperstom.code
+
+import kotlinx.serialization.Serializable
+import userunp.hyperstom.MM
+import net.minestom.server.event.trait.EntityInstanceEvent
 import net.minestom.server.event.trait.InstanceEvent
+import userunp.hyperstom.IdentifiableSerializer
 import kotlin.reflect.KClass
 
 fun getEventVal(name: String) = nameToEventVal[name] ?: throw RuntimeException("Unsupported code target! $name")
-private val nameToEventVal = mutableMapOf<String, EventValue<*>>()
-val WORLD_NAME_EVENT_VAL  = EventValue("WORLD_NAME", InstanceEvent::class) { CodeValueEntry(TEXT_VALUE_TYPE.name, world.info.name) }
+private val nameToEventVal = mutableMapOf<String, EventValue<*, *>>()
 
-data class EventValue<T : InstanceEvent>(val name: String, private val eventType: KClass<T>, private val get: EventInvokedContext<T>.() -> CodeValueEntry) {
-    operator fun invoke(ctx: EventInvokedContext<T>) = get(ctx)
-    operator fun invoke(ctx: InvokeContext): CodeValueEntry {
-        val event = ctx.msEvent
-        if (eventType.isInstance(event)) throw RuntimeException("Event ${event::class.simpleName} is not assignable to ${eventType.simpleName}")
-        @Suppress("UNCHECKED_CAST") val getEventValCtx = EventInvokedContext(event as T, ctx.world)
-        return get(getEventValCtx)
-    }
+private object EventValueSerializer : IdentifiableSerializer<EventValue<*, *>>(::getEventVal)
+@Serializable(EventValueSerializer::class) class EventValue<T : InstanceEvent, S : CodeValBox>(
+    name: String,
+    eventType: KClass<T>,
+    get: EventDataContext<T>.() -> CodeValue<S>
+) : EventDataProcessor<T, CodeValue<S>>(name, eventType, get)
 
-    init { nameToEventVal[name] = this }
-}
+val EVENT_VAL_WORLD_NAME  = reg("WORLD_NAME", InstanceEvent::class) { CodeValue(VALUE_TYPE_TEXT, TextVal(MM.deserialize(world.info.name))) }
+val EVENT_VAL_ENTITY_UUID  = reg("ENTITY_UUID", EntityInstanceEvent::class) { CodeValue(VALUE_TYPE_STR, StrVal(event.entity.uuid.toString())) }
+
+private fun <T : InstanceEvent, S : CodeValBox> reg(n: String, e: KClass<T>, g: EventDataContext<T>.() -> CodeValue<S>)
+    = EventValue(n, e, g).also { nameToEventVal[n] = it }

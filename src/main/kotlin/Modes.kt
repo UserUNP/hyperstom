@@ -1,63 +1,64 @@
-package dev.bedcrab.hyperstom
+@file:Suppress("UnstableApiUsage")
 
-import dev.bedcrab.hyperstom.datastore.StorePlayerState
-import dev.bedcrab.hyperstom.datastore.TagStore
-import io.github.oshai.kotlinlogging.KotlinLogging
+package userunp.hyperstom
+
 import net.minestom.server.event.Event
 import net.minestom.server.event.EventFilter
 import net.minestom.server.event.EventNode
 import net.minestom.server.event.player.PlayerBlockBreakEvent
 import net.minestom.server.event.player.PlayerBlockPlaceEvent
+import net.minestom.server.event.player.PlayerChatEvent
+import net.minestom.server.event.trait.EntityInstanceEvent
+import userunp.hyperstom.code.EVENT_PLAYER_CHAT
+import userunp.hyperstom.code.HSEvent
+import userunp.hyperstom.code.eventLabel
+import userunp.hyperstom.datastore.*
+import userunp.hyperstom.world.WorldManager
+import userunp.hyperstom.world.readWorldCode
+import kotlin.reflect.KClass
 
-private val LOGGER = KotlinLogging.logger {}
-
-fun initModeHandlers(parentNode: EventNode<in Event>) {
-    for (mode in ModeHandler.Mode.entries) {
-        mode.init()
-        parentNode.addChild(mode.eventNode)
-    }
-    LOGGER.info { "Registered mode handlers." }
+fun initWorldModes(world: WorldManager, parentNode: EventNode<Event>) {
+    parentNode.addChild(PlayHandler(world).node)
+    parentNode.addChild(BuildHandler(world).node)
+    parentNode.addChild(DevHandler(world).node)
 }
 
+enum class WorldMode { PLAY, BUILD, DEV }
 interface ModeHandler {
-    val eventNode: EventNode<*>
-    fun init()
+    val node: EventNode<*>
+}
 
-    enum class Mode(private val handler: ModeHandler) : ModeHandler {
-        PLAY(PlayMode),
-        BUILD(BuildMode),
-        DEV(DevMode),
-        ;
-        override val eventNode = handler.eventNode
-        override fun init() = handler.init()
-        override fun toString() = handler.toString()
+private class PlayHandler(val world: WorldManager) : ModeHandler {
+    override val node = EventNode.tag(
+        "${world.id}:PLAY", EventFilter.ENTITY,
+        TagStore.tag(StorePlayerState::class), ::inPlayMode
+    )
+    val code = readWorldCode(world)
+    init {
+        listener(PlayerChatEvent::class, EVENT_PLAYER_CHAT)
+    }
+
+    private fun <T : EntityInstanceEvent> listener(type: KClass<T>, event: HSEvent<T>) {
+        node.addListener(type.java) {
+            code(it, eventLabel(event), world)
+        }
     }
 }
 
-private object PlayMode : ModeHandler {
-    // entities should have the tag to be considered a part of the plot anyway
-    override val eventNode = EventNode.tag(
-        "modeHandler_play", EventFilter.ENTITY,
-        TagStore.tag(StorePlayerState::class), StorePlayerState.Companion::usingPlay
+private class BuildHandler(world: WorldManager) : ModeHandler {
+    override val node = EventNode.tag(
+        "${world.id}:BUILD", EventFilter.INSTANCE,
+        TagStore.tag(StorePlayerState::class), ::inBuildMode
     )
-    override fun init() {
-        eventNode.addListener(PlayerBlockPlaceEvent::class.java) { it.isCancelled = true }
-        eventNode.addListener(PlayerBlockBreakEvent::class.java) { it.isCancelled = true }
+}
+
+private class DevHandler(world: WorldManager) : ModeHandler {
+    override val node = EventNode.tag(
+        "${world.id}:DEV", EventFilter.INSTANCE,
+        TagStore.tag(StorePlayerState::class), ::inDevMode
+    )
+    init {
+        node.addListener(PlayerBlockBreakEvent::class.java) { TODO("Code block placing is not done.") }
+        node.addListener(PlayerBlockPlaceEvent::class.java) { TODO("Code block placing is not done.") }
     }
-}
-
-private object BuildMode : ModeHandler {
-    override val eventNode = EventNode.tag(
-        "ModeHandler_build", EventFilter.PLAYER,
-        TagStore.tag(StorePlayerState::class), StorePlayerState.Companion::usingBuild
-    )
-    override fun init() {}
-}
-
-private object DevMode : ModeHandler {
-    override val eventNode = EventNode.tag(
-        "ModeHandler_dev", EventFilter.PLAYER,
-        TagStore.tag(StorePlayerState::class), StorePlayerState.Companion::usingDev
-    )
-    override fun init() {}
 }

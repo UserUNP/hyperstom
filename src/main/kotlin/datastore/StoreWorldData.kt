@@ -1,8 +1,8 @@
-package dev.bedcrab.hyperstom.datastore
+package userunp.hyperstom.datastore
 
-import dev.bedcrab.hyperstom.code.*
-import dev.bedcrab.hyperstom.world.ContributorLevel
-import dev.bedcrab.hyperstom.world.WorldManager
+import userunp.hyperstom.code.*
+import userunp.hyperstom.world.ContributorLevel
+import userunp.hyperstom.world.WorldManager
 import kotlinx.serialization.Serializable
 import net.minestom.server.event.trait.InstanceEvent
 import java.util.UUID
@@ -20,21 +20,18 @@ data class StoreWorldContributors(private val map: MutableMap<String, Contributo
 }
 
 @Serializable @DataStoreRecord("code")
-data class StoreWorldCode(private val map: MutableMap<RootCodeBlockEntry, InstList>) {
-    operator fun set(entry: RootCodeBlockEntry, inst: Instruction) {
-        val list = map[entry] ?: mutableListOf<Instruction>().also { map[entry] = it }
-        list.add(inst)
+data class StoreWorldCode(private val labels: InstLabelMap) {
+    operator fun set(label: InstListLabel, inst: Instruction) = labels.getOrPut(label) { mutableListOf() }.add(inst)
+    operator fun invoke(msEvent: InstanceEvent, entryLabel: InstListLabel, world: WorldManager) {
+        val entryInstList = labels[entryLabel] ?: return
+        val invokable = entryLabel.type.get(entryLabel.name)
+        val ctx = InvokeContext(invokable, msEvent, entryInstList, entryLabel)
+        world.runtimeInvoker.exec(ctx, this, 0)
+        //TODO: world specific logs that developers can view to debug their code
     }
-    operator fun invoke(
-        msEvent: InstanceEvent, entry: RootCodeBlockEntry, world: WorldManager
-    ) {
-        val type = getCodeBlockType(entry.type)
-        val instructions = map[entry] ?: return
-        val invokable = type(entry.data)
-        /*val controller = */invokable(InvokeContext(world, msEvent, instructions))
-        // TODO: keep track of exec controllers
-    }
-    // TODO: world specific logs that developers can view to debug their code
+
+    fun getLabels() = labels.keys
+    fun getInstList(label: InstListLabel) = labels[label]
 
     companion object : PersistentStoreCompanion {
         override val default = StoreWorldContributors(mutableMapOf())
