@@ -9,6 +9,7 @@ import userunp.hyperstom.cborReadByteArray
 import net.minestom.server.tag.Tag
 import net.minestom.server.tag.TagReadable
 import net.minestom.server.tag.TagWritable
+import userunp.hyperstom.DataStoreException
 import kotlin.reflect.KClass
 import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.findAnnotation
@@ -29,7 +30,7 @@ abstract class DataStore<T>(private val dataProvider: StoreDataProvider<T>) : Au
         @JvmStatic
         protected fun getAnnotation(type: KClass<*>): DataStoreRecord {
             val annotation = type.findAnnotation<DataStoreRecord>()
-                ?: throw NullPointerException("${type.jvmName} is not a DataStoreRecord!")
+                ?: throw DataStoreException("${type.jvmName} is not a DataStoreRecord!")
             return annotation
         }
     }
@@ -42,7 +43,7 @@ fun interface TagStoreCompanion { fun defaultFunc(missing: String): BinaryTag }
 class TagStore(
     private val obj: TagReadable,
     private val nbtWrite: (nbt: CompoundBinaryTag) -> Unit = {
-        if (obj !is TagWritable) throw RuntimeException("Cannot modify an immutable object!")
+        if (obj !is TagWritable) throw DataStoreException("Cannot modify an immutable object!")
         obj.setTag(TAG_STORE_ROOT, it)
     }
 ) : DataStore<CompoundBinaryTag>(StoreDataProvider { obj.getTag(TAG_STORE_ROOT) as CompoundBinaryTag? ?: CompoundBinaryTag.empty() }) {
@@ -53,7 +54,7 @@ class TagStore(
         val compound = CompoundBinaryTag.from(data().getCompound(name).let { compound -> type.java.recordComponents.associate {
             it.name to (compound[it.name] ?: (type.companionObjectInstance as TagStoreCompanion).defaultFunc(it.name))
         } })
-        return Tag.View(recordType).read(compound) as T? ?: throw NullPointerException("Couldn't read tag $name!")
+        return Tag.View(recordType).read(compound) as T? ?: throw DataStoreException("Couldn't read tag! $name")
     }
 
     override fun save(change: Map.Entry<String, Any>) {
@@ -71,13 +72,13 @@ class TagStore(
     }
 }
 
-interface PersistentStoreCompanion { val default: Any? }
+interface PersistentStoreCompanion { val default: Any }
 class PersistentStore<T : PersistentData>(provider: StoreDataProvider<T>) : DataStore<T>(provider) {
     override fun <T : Any> read(type: KClass<T>): T {
         val annotation = getAnnotation(type)
         val bytes: ByteArray
         try { bytes = data()[annotation.name] } catch (e: Exception) {
-            val default = (type.companionObjectInstance as PersistentStoreCompanion).default ?: throw e
+            val default = (type.companionObjectInstance as PersistentStoreCompanion).default
             return default as T
         }
         return cborReadByteArray(type.java, bytes)

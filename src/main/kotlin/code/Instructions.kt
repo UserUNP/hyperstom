@@ -1,7 +1,8 @@
 package userunp.hyperstom.code
 
 import kotlinx.serialization.Serializable
-import net.minestom.server.entity.Entity
+import net.kyori.adventure.audience.Audience
+import net.kyori.adventure.audience.ForwardingAudience
 import net.minestom.server.instance.Instance
 import userunp.hyperstom.Identifiable
 import userunp.hyperstom.code.impl.*
@@ -14,8 +15,9 @@ data class InstContext(
     val controller: ExecController,
     val inst: Instruction,
     val instance: Instance,
-    val target: Set<Entity>,
+    val target: ForwardingAudience,
 )
+
 interface InstFunction {
     val params: Array<out Parameter<out CodeValBox>>
     operator fun invoke(ctx: InstContext)
@@ -41,16 +43,20 @@ typealias InstLabelMap = MutableMap<InstListLabel, InstList>
     operator fun invoke(
         controller: ExecController,
         instance: Instance,
-        target: Set<Entity>,
-    ) = props.exec(InstContext(controller, this, instance, target))
+        target: Set<Audience>,
+    ) = props.exec(InstContext(controller, this, instance) { target })
 }
 
 enum class InstProperties(
     val exec: InstFunction,
-    val targetClass: TargetClass = TargetClass.ALL,
+    val targetClass: TargetClass = TargetClass.NONE,
 ) {
-    PRINT_INSTRUCTIONS(PrintInstructions),
-    DEBUG_INST(DebugInstruction),
+    // debugging
+    PRINT_INST_LIST(PrintInstList),
+    // control
+    CALL_FUNCTION(CallFunction),
+    // player/npc
+    SEND_MESSAGE(SendMessage, TargetClass.PLAYER),
     ;
 }
 

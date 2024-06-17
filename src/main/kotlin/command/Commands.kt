@@ -7,7 +7,6 @@ import userunp.hyperstom.world.DEV_SPAWN_POINT
 import userunp.hyperstom.world.WorldManager
 import userunp.hyperstom.world.getWorld
 import io.github.oshai.kotlinlogging.KotlinLogging
-import net.kyori.adventure.text.Component
 import net.minestom.server.MinecraftServer
 import net.minestom.server.command.CommandSender
 import net.minestom.server.command.builder.Command
@@ -15,8 +14,7 @@ import net.minestom.server.command.builder.CommandContext
 import net.minestom.server.command.builder.arguments.Argument
 import net.minestom.server.entity.GameMode
 import net.minestom.server.entity.Player
-import net.minestom.server.item.ItemStack
-import net.minestom.server.item.Material
+import userunp.hyperstom.HSException
 import userunp.hyperstom.WorldMode
 
 private val LOGGER = KotlinLogging.logger {}
@@ -51,13 +49,11 @@ abstract class HSCommand(name: String) : Command(name) {
                 if (sender !is Player) return@addSyntax
                 try {
                     TagStore(sender).use { executor(HSCommandContext(sender, context)) }
-                } catch (e: Exception) {
-                    sender.sendMessage("ERROR: ${e.message}")
-                }
+                } catch (e: Exception) { sender.sendMessage(HSException(e).msg) }
             }, *arguments)
         }
     }
-    data class HSCommandContext(val player: Player, val context: CommandContext)
+    data class HSCommandContext(val player: Player, val ctx: CommandContext)
 }
 
 object AboutCommand : Command("about") {

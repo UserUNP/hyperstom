@@ -19,7 +19,7 @@ private object EventValueSerializer : IdentifiableSerializer<EventValue<*, *>>(:
     get: EventDataContext<T>.() -> CodeValue<S>
 ) : EventDataProcessor<T, CodeValue<S>>(name, eventType, get)
 
-val EVENT_VAL_WORLD_NAME  = reg("WORLD_NAME", InstanceEvent::class) { CodeValue(VALUE_TYPE_TEXT, TextVal(MM.deserialize(world.info.name))) }
+val EVENT_VAL_WORLD_NAME  = reg("WORLD_NAME", InstanceEvent::class) { CodeValue(VALUE_TYPE_TXT, TxtVal(MM.deserialize(world.info.name))) }
 val EVENT_VAL_ENTITY_UUID  = reg("ENTITY_UUID", EntityInstanceEvent::class) { CodeValue(VALUE_TYPE_STR, StrVal(event.entity.uuid.toString())) }
 
 private fun <T : InstanceEvent, S : CodeValBox> reg(n: String, e: KClass<T>, g: EventDataContext<T>.() -> CodeValue<S>)

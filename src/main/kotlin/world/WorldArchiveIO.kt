@@ -16,6 +16,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream
 import org.apache.commons.io.IOUtils
+import userunp.hyperstom.WorldIOException
 import java.io.ByteArrayInputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -40,21 +41,21 @@ private fun saveEntry(stream: ArchiveOutputStream, name: String, file: ByteArray
 
 fun readWorldArchive(id: UUID): WorldArchiveFiles {
     val stream = getInputStream(id)
-    val map = mutableMapOf<WorldFileType, ByteArray>()
+    val filesMap = mutableMapOf<WorldFileType, ByteArray>()
     val varData = WorldVarData(mutableMapOf())
     stream.use {
         var entry = stream.nextEntry
         while (entry != null) {
             if (!stream.canReadEntryData(entry)) continue
             if (entry.name.startsWith(VAR_DATA_PREFIX)) readVarData(entry, stream, varData)
-            else try { map[WorldFileType.valueOf(entry.name)] = stream.readBytes() } catch (_: Exception) {}
+            else try { filesMap[WorldFileType.valueOf(entry.name)] = stream.readBytes() } catch (_: Exception) {}
             entry = stream.nextEntry
         }
-        checkWorldFiles(id, map)
+        checkWorldFiles(id, filesMap)
         return WorldArchiveFiles(
-            readWorldInfo(map[WorldFileType.INFO]!!), varData,
-            PolarLoader(PolarReader.read(map[WorldFileType.BUILD]!!)),
-            PolarLoader(PolarReader.read(map[WorldFileType.DEV]!!))
+            readWorldInfo(filesMap[WorldFileType.INFO]!!), varData,
+            PolarLoader(PolarReader.read(filesMap[WorldFileType.BUILD]!!)),
+            PolarLoader(PolarReader.read(filesMap[WorldFileType.DEV]!!))
         )
     }
 }
@@ -63,23 +64,22 @@ fun writeWorldArchive(id: UUID, files: WorldArchiveFiles) = getOutputStream(id).
     WorldFileType.INFO.save(files.infoFile(), it)
     WorldFileType.BUILD.save(files.buildFile(), it)
     WorldFileType.DEV.save(files.devFile(), it)
-    WorldFileType.saveVarData(files.varDataFiles(), it)
+    saveVarData(files.varDataFiles(), it)
     it.flush()
 }
 
 private enum class WorldFileType {
     INFO, BUILD, DEV;
     fun save(file: ByteArrayInputStream, stream: ArchiveOutputStream) = saveEntry(stream, name, file)
-    companion object {
-        fun saveVarData(map: Map<String, ByteArrayInputStream>, stream: ArchiveOutputStream) {
-            for ((name, file) in map) saveEntry(stream, name, file)
-        }
-    }
+}
+
+private fun saveVarData(map: Map<String, ByteArrayInputStream>, stream: ArchiveOutputStream) {
+    for ((name, file) in map) saveEntry(stream, name, file)
 }
 
 private fun checkWorldFiles(id: UUID, map: Map<WorldFileType, ByteArray>) {
     for (type in WorldFileType.entries) {
-        if (map[type] == null) throw RuntimeException("World $id is missing the ${type.name} file!")
+        if (map[type] == null) throw WorldIOException("${type.name} is missing from World! $id")
     }
 }
 
@@ -130,7 +130,7 @@ private fun readWorldInfo(file: ByteArray): WorldInfo {
  * Variably sized world data
  */
 class WorldVarData(val map: MutableMap<String, ByteArray>) : PersistentData {
-    override operator fun get(section: String) = map[section] ?: throw NullPointerException("Section with name $section does not exist!")
+    override operator fun get(section: String) = map[section] ?: throw WorldIOException("No such section! $section")
     override operator fun set(section: String, bytes: ByteArray) {
         map[section] = bytes
     }

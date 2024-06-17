@@ -40,4 +40,4 @@ enum class CodeBlock(val type: CodeBlockType) {
 fun eventLabel(e: HSEvent<*>) = InstListLabel(CodeBlockType.EVENT, e.name)
 fun dataLabel(name: String) = InstListLabel(CodeBlockType.DATA, name)
 fun scopedLabel(name: String) = InstListLabel(CodeBlockType.SCOPED, name)
-@Serializable data class InstListLabel(val type: CodeBlockType, val name: String)
+@Serializable data class InstListLabel(val type: CodeBlockType, override val name: String) : CodeValBox

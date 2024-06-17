@@ -5,6 +5,7 @@ import userunp.hyperstom.world.ContributorLevel
 import userunp.hyperstom.world.WorldManager
 import kotlinx.serialization.Serializable
 import net.minestom.server.event.trait.InstanceEvent
+import userunp.hyperstom.CodeException
 import java.util.UUID
 
 @Serializable @DataStoreRecord("contributors")
@@ -26,7 +27,9 @@ data class StoreWorldCode(private val labels: InstLabelMap) {
         val entryInstList = labels[entryLabel] ?: return
         val invokable = entryLabel.type.get(entryLabel.name)
         val ctx = InvokeContext(invokable, msEvent, entryInstList, entryLabel)
-        world.runtimeInvoker.exec(ctx, this, 0)
+        try {
+            world.runtimeInvoker.exec(ctx, this, 0)
+        } catch (e: Exception) { throw CodeException(e) }
         //TODO: world specific logs that developers can view to debug their code
     }
 

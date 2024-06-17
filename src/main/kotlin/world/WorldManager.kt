@@ -15,9 +15,7 @@ import net.minestom.server.instance.InstanceContainer
 import net.minestom.server.instance.SharedInstance
 import net.minestom.server.instance.block.Block
 import net.minestom.server.world.DimensionType
-import userunp.hyperstom.HUB_WORLD_ID
-import userunp.hyperstom.HUB_WORLD_INFO
-import userunp.hyperstom.initWorldModes
+import userunp.hyperstom.*
 import java.io.File
 import java.util.UUID
 
@@ -29,17 +27,17 @@ val BUILD_SPAWN_POINT = Pos(0.0, 65.0, 0.0)
 val DEV_SPAWN_POINT = Pos(0.0, 65.5,  0.0)
 
 val worlds = mutableMapOf<UUID, WorldManager>()
-fun getWorld(id: UUID) = worlds[id] ?: throw NullPointerException("World with id $id does not exist!")
+fun getWorld(id: UUID) = worlds[id] ?: throw NullPointerException("No such world! $id")
 
 fun initWorlds(eventHandler: EventNode<Event>) {
     val dir = File(WORLDS_DIR)
     if (!dir.exists()) dir.mkdirs()
-    else if (!dir.isDirectory) throw FileAlreadyExistsException(dir, null, "$WORLDS_DIR is not a directory!")
+    else if (!dir.isDirectory) throw FileAlreadyExistsException(dir, reason = "$WORLDS_DIR is not a directory!")
     var containsHub = false
     for (str in dir.list()!!) {
         if (!str.endsWith(".$WORLDS_EXT")) continue
         val id = UUID.fromString(str.replace(".$WORLDS_EXT", ""))
-        if (worlds.contains(id)) throw RuntimeException("Duplicate world id! $id")
+        if (worlds.contains(id)) throw WorldIOException("Duplicate world id! $id")
         if (id == HUB_WORLD_ID) containsHub = true
         val world = WorldManager(id, readWorldArchive(id))
         worlds[id] = world
@@ -92,16 +90,26 @@ class WorldManager(val id: UUID, val files: WorldArchiveFiles) : StoreDataProvid
 
         //TODO: remove this shit
         PersistentStore(this).use { it.write(StoreWorldCode(mutableMapOf(
-            dataLabel("can be anything lol") to mutableListOf(
-                Instruction(InstProperties.PRINT_INSTRUCTIONS, EMPTY_ARGS),
-                Instruction(InstProperties.DEBUG_INST, Arguments(
-                    "first" to mutableListOf(CodeValue(VALUE_TYPE_STR, StrVal("yeepee"))),
-                    "second" to mutableListOf(CodeValue(VALUE_TYPE_BOOL, BoolVal(true))),
-                ))
+            dataLabel("__debug") to mutableListOf(
+                Instruction(InstProperties.PRINT_INST_LIST, EMPTY_ARGS),
+            ),
+            dataLabel("test") to mutableListOf(
+                Instruction(InstProperties.SEND_MESSAGE, Arguments(
+                    "msg" to mutableListOf(CodeValue(VALUE_TYPE_TXT, TxtVal(
+                        MM.deserialize("<gradient:blue:aqua:blue>Can also call functions (jump to labels)")
+                    ))),
+                )),
             ),
             eventLabel(EVENT_PLAYER_CHAT) to mutableListOf(
-                Instruction(InstProperties.PRINT_INSTRUCTIONS, EMPTY_ARGS),
-            )
+                Instruction(InstProperties.SEND_MESSAGE, Arguments(
+                    "msg" to mutableListOf(CodeValue(VALUE_TYPE_TXT, TxtVal(
+                        MM.deserialize("<gradient:red:dark_red:red>Can target & send messages now!")
+                    ))),
+                ), TARGET_DEFAULT),
+                Instruction(InstProperties.CALL_FUNCTION, Arguments(
+                    "func" to mutableListOf(CodeValue(VALUE_TYPE_FUNC, dataLabel("jump to me"))),
+                )),
+            ),
         ))) }
     }
 

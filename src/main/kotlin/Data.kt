@@ -65,7 +65,7 @@ fun initCodeValueTypes() {
         VALUE_TYPE_EXPR to MM.deserialize("<red>Expr<#5fccfc>\\<>"),
 
         VALUE_TYPE_ITEM to MM.deserialize("<gold>Item"),
-        VALUE_TYPE_TEXT to MM.deserialize("<green>Txt"),
+        VALUE_TYPE_TXT to MM.deserialize("<green>Txt"),
         VALUE_TYPE_PARTICLE to MM.deserialize("<purple>Particle"),
     )
     LOGGER.info { "Registered ${codeValueTypeToComponent.size} code value types." }

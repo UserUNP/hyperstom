@@ -26,13 +26,13 @@ data object NullVal : CodeValBox { override val name = "(null)" }
 data class StrVal(val str: String) : CodeValBox { override val name = str }
 data class NumVal(val num: Float) : CodeValBox { override val name = "$num" }
 data class BoolVal(val bool: Boolean) : CodeValBox { override val name = "$bool" }
-data class TextVal(val text: Component) : CodeValBox { override val name = MM.serialize(text) }
+data class TxtVal(val text: Component) : CodeValBox { override val name = MM.serialize(text) }
 
 val codeValPolymorphic: PolymorphicModuleBuilder<CodeValBox>.() -> Unit = {
     subclass(CodeValBoxSerializer(VALUE_TYPE_NULL))
     subclass(CodeValBoxSerializer(VALUE_TYPE_STR))
     subclass(CodeValBoxSerializer(VALUE_TYPE_BOOL))
-    subclass(CodeValBoxSerializer(VALUE_TYPE_TEXT))
+    subclass(CodeValBoxSerializer(VALUE_TYPE_TXT))
 }
 
 fun getCodeValueType(name: String) = nameToCodeValueType[name] ?: throw RuntimeException("Unsupported code value type! $name")
@@ -49,7 +49,7 @@ val VALUE_TYPE_VAR = placeholder("VAR")
 val VALUE_TYPE_CONST = placeholder("CONST")
 val VALUE_TYPE_EVENT_VAL = CodeValueType("EVENT_VAL", EventValue::class, ::getEventVal)
 val VALUE_TYPE_TARGET = CodeValueType("TARGET", EventTarget::class, ::getEventTarget)
-val VALUE_TYPE_FUNC = placeholder("FUNC")
+val VALUE_TYPE_FUNC = CodeValueType("FUNC", InstListLabel::class, ::dataLabel)
 // primitive
 val VALUE_TYPE_STR = CodeValueType("STR", StrVal::class) { StrVal(it) }
 val VALUE_TYPE_NUM = CodeValueType("NUM", NumVal::class) { NumVal(it.toFloat()) }
@@ -57,7 +57,7 @@ val VALUE_TYPE_BOOL = CodeValueType("BOOL", BoolVal::class) { BoolVal(it.toBoole
 val VALUE_TYPE_LIST = placeholder("LIST")
 val VALUE_TYPE_EXPR = placeholder("EXPR") //TODO: evaluate vars n math and concat them to strings or used as a number
 // minecraft
-val VALUE_TYPE_TEXT = CodeValueType("TEXT", TextVal::class) { TextVal(MM.deserialize(it)) }
+val VALUE_TYPE_TXT = CodeValueType("TXT", TxtVal::class) { TxtVal(MM.deserialize(it)) }
 val VALUE_TYPE_ITEM = placeholder("ITEM") //TODO: this is annoying because i have to waste storing the itemstack for mc and the item data for hyperstom
 val VALUE_TYPE_PARTICLE = placeholder("PARTICLE") //TODO: bunch of fields
 
