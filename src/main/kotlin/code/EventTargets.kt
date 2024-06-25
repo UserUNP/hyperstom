@@ -34,7 +34,9 @@ val TARGET_NPC_ALL = reg("NPC_ALL", InstanceEvent::class) {
     event.instance.entities.mapNotNull {if (it !is Player) EntityAsAudience(it) else null }.toSet()
 }
 val TARGET_NPC_RAND = reg("NPC_RAND", InstanceEvent::class) { setOf(TARGET_NPC_ALL.get(this).random()) }
-val TARGET_DEFAULT = reg("DEFAULT", EntityInstanceEvent::class) { setOf(EntityAsAudience(event.entity)) }
+val TARGET_DEFAULT = reg("DEFAULT", EntityInstanceEvent::class) {
+    setOf(if (event.entity is Audience) event.entity as Audience else EntityAsAudience(event.entity))
+}
 // event specific
 val TARGET_ENTITY_CLICKED = reg("ENTITY_CLICKED", PlayerEntityInteractEvent::class) { setOf(event.entity) }
 
