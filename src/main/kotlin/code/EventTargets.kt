@@ -44,10 +44,10 @@ private fun <T : InstanceEvent> reg(n: String, e: KClass<T>, g: EventDataContext
     = EventTarget(n, e, g).also { nameToEventTarget[n] = it }
 
 fun EventTarget<*>.targetClass() =
-    if (name == "ALL") TargetClass.ALL
+    if (name == "NONE") TargetClass.NONE
     else if (name.startsWith("PLAYER")) TargetClass.PLAYER
     else if (name.startsWith("NPC")) TargetClass.NPC
-    else TargetClass.NONE
+    else TargetClass.ALL
 
 enum class TargetClass {
     NONE, ALL, PLAYER, NPC;
