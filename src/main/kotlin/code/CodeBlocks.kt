@@ -1,7 +1,5 @@
 package userunp.hyperstom.code
 
-import kotlinx.serialization.Serializable
-
 enum class CodeBlockType(val brackets: Boolean, private val getter: ((data: String) -> Invokable)? = null) {
     DATA(true, { HSProcess(it) }), // only case for invoking a data code block is for a process
     EVENT(true, { getEvent(it) }),
@@ -36,8 +34,3 @@ enum class CodeBlock(val type: CodeBlockType) {
     REPEAT(CodeBlockType.SCOPED),
     ;
 }
-
-fun eventLabel(e: HSEvent<*>) = InstListLabel(CodeBlockType.EVENT, e.name)
-fun dataLabel(name: String) = InstListLabel(CodeBlockType.DATA, name)
-fun scopedLabel(name: String) = InstListLabel(CodeBlockType.SCOPED, name)
-@Serializable data class InstListLabel(val type: CodeBlockType, override val name: String) : CodeValBox

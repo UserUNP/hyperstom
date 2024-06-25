@@ -10,17 +10,17 @@ import userunp.hyperstom.IdentifiableSerializer
 import kotlin.reflect.KClass
 
 fun getEventVal(name: String) = nameToEventVal[name] ?: throw RuntimeException("Unsupported code target! $name")
-private val nameToEventVal = mutableMapOf<String, EventValue<*, *>>()
+private val nameToEventVal = mutableMapOf<String, EventVal<*, *>>()
 
-private object EventValueSerializer : IdentifiableSerializer<EventValue<*, *>>(::getEventVal)
-@Serializable(EventValueSerializer::class) class EventValue<T : InstanceEvent, S : CodeValBox>(
+private object EventValueSerializer : IdentifiableSerializer<EventVal<*, *>>(::getEventVal)
+@Serializable(EventValueSerializer::class) class EventVal<T : InstanceEvent, S : CodeValBox>(
     name: String,
     eventType: KClass<T>,
-    get: EventDataContext<T>.() -> CodeValue<S>
-) : EventDataProcessor<T, CodeValue<S>>(name, eventType, get)
+    get: EventDataContext<T>.() -> CodeVal<S>
+) : EventDataProcessor<T, CodeVal<S>>(name, eventType, get)
 
-val EVENT_VAL_WORLD_NAME  = reg("WORLD_NAME", InstanceEvent::class) { CodeValue(VALUE_TYPE_TXT, TxtVal(MM.deserialize(world.info.name))) }
-val EVENT_VAL_ENTITY_UUID  = reg("ENTITY_UUID", EntityInstanceEvent::class) { CodeValue(VALUE_TYPE_STR, StrVal(event.entity.uuid.toString())) }
+val EVENT_VAL_WORLD_TITLE  = reg("WORLD_NAME", InstanceEvent::class) { CodeVal(VAL_TYPE_TXT, TxtVal(MM.deserialize(world.info.title))) }
+val EVENT_VAL_ENTITY_UUID  = reg("ENTITY_UUID", EntityInstanceEvent::class) { CodeVal(VAL_TYPE_STR, StrVal(event.entity.uuid.toString())) }
 
-private fun <T : InstanceEvent, S : CodeValBox> reg(n: String, e: KClass<T>, g: EventDataContext<T>.() -> CodeValue<S>)
-    = EventValue(n, e, g).also { nameToEventVal[n] = it }
+private fun <T : InstanceEvent, S : CodeValBox> reg(n: String, e: KClass<T>, g: EventDataContext<T>.() -> CodeVal<S>)
+    = EventVal(n, e, g).also { nameToEventVal[n] = it }

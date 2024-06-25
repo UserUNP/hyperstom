@@ -31,14 +31,13 @@ fun main() {
         LOGGER.info { "\t> Initializing data." }
         initData()
         LOGGER.info { "\t> Initializing worlds." }
-        initWorlds(eventHandler)
+        initWorlds()
         LOGGER.info { "\t> Initializing MC server." }
         initMCServer(eventHandler)
         server.start("0.0.0.0", 25565)
         MinecraftServer.getSchedulerManager().buildShutdownTask(::shutdownWorlds)
     }} seconds." }
 }
-
 
 fun initMCServer(eventHandler: EventNode<Event>) {
     MojangAuth.init()

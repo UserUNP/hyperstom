@@ -15,10 +15,10 @@ fun initData() {
 }
 
 private lateinit var codeBlockToComponent: Map<CodeBlock, Component>
-private lateinit var codeValueTypeToComponent: Map<CodeValueType<*>, Component>
+private lateinit var codeValTypeToComponent: Map<CodeValType<*>, Component>
 private lateinit var hsEventToComponent: Map<HSEvent<*>, Component>
 private lateinit var eventTargetToComponent: Map<EventTarget<*>, Component>
-private lateinit var eventValToComponent: Map<EventValue<*, *>, Component>
+private lateinit var eventValToComponent: Map<EventVal<*, *>, Component>
 
 fun initCodeBlocks() {
     codeBlockToComponent = mapOf(
@@ -48,27 +48,27 @@ fun initCodeBlocks() {
 }
 
 fun initCodeValueTypes() {
-    codeValueTypeToComponent = mapOf(
-        VALUE_TYPE_NULL to MM.deserialize("<gradient:#0bb0a0:#0bb0fa>Null"),
-        VALUE_TYPE_TYPE to MM.deserialize("<gradient:#9f9cff:#5fccfc>Type"),
-        VALUE_TYPE_PARAM to MM.deserialize("<gradient:#0090a0:#aaff7a:#a0f7a0>Parameter<#5fccfc>\\<>"),
-        VALUE_TYPE_VAR to MM.deserialize("<gradient:#709f0f:#e3f000:#fe9e00>Variable"),
-        VALUE_TYPE_CONST to MM.deserialize("<gradient:#7f5f5f:#e4660c:red>Constant<#5fccfc>\\<>"),
-        VALUE_TYPE_EVENT_VAL to MM.deserialize("<gradient:#ffd070:#ffffaf:#ffd070>Event Value"),
-        VALUE_TYPE_TARGET to MM.deserialize("Target"), //TODO: fancy colos
-        VALUE_TYPE_FUNC to MM.deserialize("<gradient:#0adadf:#0f7fff:#0acacf:#0f7fff>Function ref"),
+    codeValTypeToComponent = mapOf(
+        VAL_TYPE_NULL to MM.deserialize("<gradient:#0bb0a0:#0bb0fa>Null"),
+        VAL_TYPE_TYPE to MM.deserialize("<gradient:#9f9cff:#5fccfc>Type"),
+        VAL_TYPE_PARAM to MM.deserialize("<gradient:#0090a0:#aaff7a:#a0f7a0>Parameter<#5fccfc>\\<>"),
+        VAL_TYPE_VAR to MM.deserialize("<gradient:#709f0f:#e3f000:#fe9e00>Variable"),
+        VAL_TYPE_GLOBAL to MM.deserialize("<gradient:#7f5f5f:#e4660c:red>Global<#5fccfc>\\<>"),
+        VAL_TYPE_EVENT_VAL to MM.deserialize("<gradient:#ffd070:#ffffaf:#ffd070>Event Value"),
+        VAL_TYPE_TARGET to MM.deserialize("Target"), //TODO: fancy colos
+        VAL_TYPE_FUNC to MM.deserialize("<gradient:#0adadf:#0f7fff:#0acacf:#0f7fff>Function ref"),
 
-        VALUE_TYPE_STR to MM.deserialize("<red>Str"),
-        VALUE_TYPE_NUM to MM.deserialize("<red>Num"),
-        VALUE_TYPE_BOOL to MM.deserialize("<red>Bool"),
-        VALUE_TYPE_LIST to MM.deserialize("<red>List<#5fccfc>\\<>"),
-        VALUE_TYPE_EXPR to MM.deserialize("<red>Expr<#5fccfc>\\<>"),
+        VAL_TYPE_STR to MM.deserialize("<red>Str"),
+        VAL_TYPE_NUM to MM.deserialize("<red>Num"),
+        VAL_TYPE_BOOL to MM.deserialize("<red>Bool"),
+        VAL_TYPE_LIST to MM.deserialize("<red>List<#5fccfc>\\<>"),
+        VAL_TYPE_EXPR to MM.deserialize("<red>Expr<#5fccfc>\\<>"),
 
-        VALUE_TYPE_ITEM to MM.deserialize("<gold>Item"),
-        VALUE_TYPE_TXT to MM.deserialize("<green>Txt"),
-        VALUE_TYPE_PARTICLE to MM.deserialize("<purple>Particle"),
+        VAL_TYPE_ITEM to MM.deserialize("<gold>Item"),
+        VAL_TYPE_TXT to MM.deserialize("<green>Txt"),
+        VAL_TYPE_PARTICLE to MM.deserialize("<purple>Particle"),
     )
-    LOGGER.info { "Registered ${codeValueTypeToComponent.size} code value types." }
+    LOGGER.info { "Registered ${codeValTypeToComponent.size} code value types." }
 }
 
 fun initCodeTargets() {
@@ -86,7 +86,7 @@ fun initCodeTargets() {
 
 fun initEventValues() {
     eventValToComponent = mapOf(
-        EVENT_VAL_WORLD_NAME to MM.deserialize("World Name"),
+        EVENT_VAL_WORLD_TITLE to MM.deserialize("World Name"),
         EVENT_VAL_ENTITY_UUID to MM.deserialize("Default Entity UUID")
     )
     LOGGER.info { "Registered ${eventValToComponent.size} event values." }

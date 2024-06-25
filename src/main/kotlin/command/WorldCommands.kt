@@ -1,7 +1,6 @@
 package userunp.hyperstom.command
 
 import userunp.hyperstom.datastore.*
-import userunp.hyperstom.code.getEvents
 import userunp.hyperstom.world.*
 import net.kyori.adventure.text.Component
 import net.minestom.server.command.builder.CommandContext
@@ -9,8 +8,7 @@ import net.minestom.server.command.builder.arguments.Argument
 import net.minestom.server.command.builder.arguments.ArgumentType
 import net.minestom.server.entity.Player
 import userunp.hyperstom.*
-import userunp.hyperstom.code.dataLabel
-import userunp.hyperstom.code.eventLabel
+import userunp.hyperstom.code.*
 import java.util.UUID
 
 data class WorldCommandContext(val ctx: CommandContext, val world: WorldManager, val player: Player)
@@ -35,7 +33,7 @@ abstract class WorldSubCommand(name: String) : HSCommand(name) {
         }
         if (needsOwner) if (world.info.owner != player.uuid) throw CommandException("Only the owner can run this command!")
         if (level != null) {
-            val contributors = PersistentStore(world).use { it.read(StoreWorldContributors::class) }
+            val contributors = readWorldContributors(world)
             if (!contributors.hasPerm(player.uuid, level!!)) throw CommandException("Insufficient permission!")
         }
         executor(WorldCommandContext(ctx, world, player))
@@ -64,12 +62,12 @@ object WorldInvokeCommand : WorldSubCommand("invoke") {
         for (event in getEvents()) {
             Syntax(arrayOf(ArgumentType.Literal(event.name))) {
                 val code = readWorldCode(world)
-                code({ world.play }, eventLabel(event), world)
+                code({ world.play }, eventLabel(event), world.runtimeInvoker)
             }
         }
         Syntax(arrayOf(ArgumentType.String("label"))) {
             val code = readWorldCode(world)
-            code({ world.play }, dataLabel(ctx.get("label")), world)
+            code({ world.play }, dataLabel(ctx.get("label")), world.runtimeInvoker)
         }
     }
 }
@@ -80,7 +78,7 @@ object WorldLSLabelsCommand : WorldSubCommand("lslabels") {
             player.sendMessage(MM.deserialize(StringBuilder().apply {
                 appendLine("<red>LABELS: ------------")
                 for (l in readWorldCode(world).getLabels()) {
-                    appendLine("<dark_red> * <red>${l.name}:    <gray><i>${l.type}</i>")
+                    appendLine("<dark_red> * <red>${l.name}:    <i>(${l.type})</i>")
                 }
                 appendLine("<red>-------------------")
             }.toString()))
@@ -90,10 +88,12 @@ object WorldLSLabelsCommand : WorldSubCommand("lslabels") {
             player.sendMessage(MM.deserialize(StringBuilder().apply {
                 appendLine("<red>LABELS: ------------")
                 for (l in code.getLabels()) {
-                    val instList = code.getInstList(l)!!
-                    appendLine("<dark_red> * <red>${l.name}:    <gray><i>${l.type}</i>")
+                    val instList = code.resolveLabel(l)
+                    appendLine("<dark_red> * <red>${l.name}:    <i>(${l.type})</i>")
                     for (i in instList) {
-                        appendLine("<dark_red>        -> <gray><i>${i.props.name} @${i.target.name}</i>")
+                        if (i.target.targetClass() != TargetClass.NONE) {
+                            appendLine("<dark_red>        -> <gray>${i.props.name} <i>@${i.target.name}</i>")
+                        } else appendLine("<dark_red>        -> <gray>${i.props.name}")
                     }
                 }
                 appendLine("<red>-------------------")

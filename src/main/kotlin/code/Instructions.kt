@@ -4,12 +4,9 @@ import kotlinx.serialization.Serializable
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.audience.ForwardingAudience
 import net.minestom.server.instance.Instance
-import userunp.hyperstom.Identifiable
 import userunp.hyperstom.code.impl.*
-import kotlin.reflect.cast
 
-val EMPTY_ARGS = Arguments()
-private val NULL_VALUE_SET = mutableListOf(NULL_VALUE)
+val EMPTY_ARGS: Arguments = mutableMapOf()
 
 data class InstContext(
     val controller: ExecController,
@@ -24,7 +21,9 @@ interface InstFunction {
 }
 
 typealias InstList = MutableList<Instruction>
-typealias InstLabelMap = MutableMap<InstListLabel, InstList>
+typealias InstLabelMap = MutableMap<CodeLabel, InstList>
+typealias Arguments = MutableMap<String, CodeVal<*>>
+
 @Serializable data class Instruction(
     val props: InstProperties,
     val args: Arguments,
@@ -32,12 +31,13 @@ typealias InstLabelMap = MutableMap<InstListLabel, InstList>
 ) {
     init {
         for (p in props.exec.params) {
-            val valuesSet = args.map[p.name]
-                ?: if (p.optional) NULL_VALUE_SET else throw RuntimeException("Missing required argument! ${p.name}")
-            for (value in valuesSet) if (value.type != p.type) {
-                throw RuntimeException("Expected ${p.type.name} but got ${value.type} instead!")
+            val codeVal = args[p.name]
+            if (codeVal == null) {
+                if (!p.optional) throw RuntimeException("Missing required argument! ${p.name}")
+                args[p.name] = NULL_VALUE
+            } else if (!p.optional && !p.dynamicType && !codeVal.type.runtime && p.type != null && codeVal.type != p.type) {
+                throw RuntimeException("Expected ${p.type.name} but got ${codeVal.type.name} instead! ${props.name}")
             }
-            args.map[p.name] = valuesSet
         }
     }
     operator fun invoke(
@@ -52,26 +52,26 @@ enum class InstProperties(
     val targetClass: TargetClass = TargetClass.NONE,
 ) {
     // debugging
-    PRINT_INST_LIST(PrintInstList),
+    DEBUG_FRAME(DebugFrame),
     // control
     CALL_FUNCTION(CallFunction),
+    // var
+    ASSIGN_VAR(AssignVar),
     // player/npc
     SEND_MESSAGE(SendMessage, TargetClass.PLAYER),
     ;
 }
 
-@Serializable data class Arguments(val map: MutableMap<String, MutableList<out CodeValue<*>>>) {
-    constructor(vararg pairs: Pair<String, MutableList<CodeValue<*>>>) : this(mutableMapOf(*pairs))
-    fun <T : CodeValBox> single(p: Parameter<T>): T {
-        val arg = (map[p.name] ?: throw RuntimeException("No such parameter! $p"))[0]
-        if (p.type != arg.type) throw RuntimeException("Expected ${p.type.name}, got ${arg.type.name} instead! ${p.name}")
-        return p.type.typeClass.cast(arg.value)
+//TODO: plural parameters would be utilizing VAL_TYPE_LIST
+data class Parameter<T : CodeValBox>(
+    val name: String,
+    val type: CodeValType<T>? = null,
+    val dynamicType: Boolean = type == null,
+    val optional: Boolean = false,
+) {
+    init {
+        if (dynamicType && type != null) {
+            throw RuntimeException("Cannot have a dynamic parameter with its type initialized! $name")
+        }
     }
 }
-
-data class Parameter<T : CodeValBox>(
-    override val name: String,
-    val type: CodeValueType<T>,
-    val optional: Boolean = false,
-    val plural: Boolean = false
-) : Identifiable

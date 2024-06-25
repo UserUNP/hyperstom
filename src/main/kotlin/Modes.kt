@@ -40,7 +40,7 @@ private class PlayHandler(val world: WorldManager) : ModeHandler {
 
     private fun <T : EntityInstanceEvent> listener(type: KClass<T>, event: HSEvent<T>) {
         node.addListener(type.java) {
-            code(it, eventLabel(event), world)
+            code(it, eventLabel(event), world.runtimeInvoker)
         }
     }
 }

@@ -11,7 +11,7 @@ fun inBuildMode(state: StorePlayerState?) = state?.mode == WorldMode.BUILD
 fun inDevMode(state: StorePlayerState?) = state?.mode == WorldMode.DEV
 
 @JvmRecord
-@DataStoreRecord("state")
+@DataStoreRecord("State")
 data class StorePlayerState(val modeIndex: Int, val id: UUID) {
     val mode get() = WorldMode.entries[modeIndex]
     fun withMode(newMode: WorldMode): StorePlayerState {

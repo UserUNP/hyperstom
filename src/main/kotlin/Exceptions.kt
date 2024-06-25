@@ -1,9 +1,9 @@
 package userunp.hyperstom
 
 class HSException(cause: Throwable, msg: String? = null): Exception(cause) {
-    override val message = msg ?: cause.message ?: "(unknown reason)"
+    override val message = msg ?: if (cause.message != null) "------------" else "(unknown reason)"
     val msg = MM.deserialize(StringBuilder().apply {
-        appendLine("<dark_red>[ERROR] <red><i>$message</i>")
+        appendLine("<dark_red>[ERROR] <red>$message")
         var throwable: Throwable? = cause
         var i = 1
         while (throwable != null) {
@@ -12,7 +12,7 @@ class HSException(cause: Throwable, msg: String? = null): Exception(cause) {
             throwable = throwable.cause
             i++
         }
-        appendLine("<red>--------------------")
+        appendLine("<red>-------------------")
     }.toString())
 }
 

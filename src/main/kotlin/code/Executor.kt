@@ -3,10 +3,10 @@
 package userunp.hyperstom.code
 
 import kotlinx.coroutines.*
+import kotlinx.serialization.Serializable
 import userunp.hyperstom.world.WorldManager
 import net.minestom.server.event.player.PlayerChatEvent
 import net.minestom.server.event.trait.InstanceEvent
-import userunp.hyperstom.datastore.StoreWorldCode
 import kotlin.reflect.KClass
 import kotlin.reflect.cast
 
@@ -15,23 +15,28 @@ interface Invokable {
     fun check(ctx: InvokeContext)
 }
 
-interface Invoker {  //TODO: a debug invoker for debugging, and maybe misc invokers for fun
-    val scope: CoroutineScope
-    fun exec(ctx: InvokeContext, code: StoreWorldCode, startIndex: Int)
-}
+/* TODO:
+find out how to implement a minestom scheduler utilizing kotlin coroutines
+because trying to run asynchronously outside the tick thread isn't the best idea
+ */
 
 data class InvokeContext(
     val invokable: Invokable,
     val msEvent: InstanceEvent,
     val instList: InstList,
-    val label: InstListLabel
+    val label: CodeLabel
 )
+
+interface Invoker {  //TODO: a debug invoker for debugging, and maybe misc invokers for fun
+    val scope: CoroutineScope
+    fun exec(ctx: InvokeContext, startIndex: Int, labelResolver: CodeLabelResolver)
+}
 
 class RuntimeInvoker(val world: WorldManager) : Invoker {
     override val scope = CoroutineScope(Dispatchers.Default)
-    override fun exec(ctx: InvokeContext, code: StoreWorldCode, startIndex: Int) {
+    override fun exec(ctx: InvokeContext, startIndex: Int, labelResolver: CodeLabelResolver) {
         scope.launch(CoroutineName("${world.id}:${ctx.invokable.name}")) {
-            val controller = ExecController(ctx, code, startIndex)
+            val controller = ExecController(ctx, startIndex, labelResolver)
             try {
                 for (inst in controller) {
                     val targetClass = inst.target.targetClass()
@@ -45,32 +50,77 @@ class RuntimeInvoker(val world: WorldManager) : Invoker {
     }
 }
 
+fun eventLabel(e: HSEvent<*>) = CodeLabel(CodeBlockType.EVENT, e.name)
+fun dataLabel(name: String) = CodeLabel(CodeBlockType.DATA, name)
+fun scopedLabel(name: String) = CodeLabel(CodeBlockType.SCOPED, name)
+
+@Serializable data class CodeLabel(val type: CodeBlockType, override val name: String) : CodeValBox
+
+fun interface CodeLabelResolver {
+    fun resolveLabel(label: CodeLabel): InstList
+}
+
+fun interface CodeVarResolver {
+    fun resolveVar(name: String): CodeVal<*>
+}
+
+typealias CodeVars = MutableMap<String, CodeVal<*>>
+
 data class ExecFrame(
-    val label: InstListLabel,
+    val label: CodeLabel,
     val instList: InstList,
     var instIndex: Int,
-) //TODO: variables here, & labels for jump type execution flows
+    val vars: CodeVars = mutableMapOf(),
+    var previous: ExecFrame? = null,
+)
 
-class ExecController(ctx: InvokeContext, private val code: StoreWorldCode, startIndex: Int) {
-    private var previous: ExecFrame? = null
+class ExecController(
+    ctx: InvokeContext,
+    startIndex: Int,
+    private val labelResolver: CodeLabelResolver,
+) : CodeVarResolver {
     var frame = ExecFrame(ctx.label, ctx.instList, startIndex)
+    private lateinit var currInst: Instruction
 
-    operator fun iterator() = this
-    operator fun next() = frame.instList[frame.instIndex++]
+    operator fun next(): Instruction {
+        currInst = frame.instList[frame.instIndex++]
+        return currInst
+    }
+
     operator fun hasNext(): Boolean {
         val hasNext = frame.instIndex <= frame.instList.size-1
-        if (!hasNext) previous?.let {
-            previous = null
+        if (!hasNext) frame.previous?.let {
             frame = it
             return@hasNext hasNext()
         }
         return hasNext
     }
 
-    fun jumpTo(label: InstListLabel, startIndex: Int) {
-        val instList = code.getInstList(label) ?: throw RuntimeException("Could not find label to jump to! ${label.name}")
-        previous = frame
-        frame = ExecFrame(label, instList, startIndex)
+    operator fun iterator() = this
+
+    fun jumpTo(label: CodeLabel, startIndex: Int) {
+        val instList = labelResolver.resolveLabel(label)
+        frame = ExecFrame(label, instList, startIndex, previous = frame)
+    }
+
+    override fun resolveVar(name: String) = frame.vars[name]
+        ?: (if (frame.label.type == CodeBlockType.SCOPED) frame.previous?.let { it.vars[name] } else null)
+        ?: throw RuntimeException("No such var! $name")
+
+    fun argAny(p: Parameter<*>): CodeVal<*> {
+        val codeVal = currInst.args[p.name] ?: throw RuntimeException("No such argument! ${p.name}")
+        return when (codeVal.type) {
+            VAL_TYPE_VAR -> resolveVar((codeVal.value as StrVal).name)
+            else -> codeVal
+        }
+    }
+
+    fun <T : CodeValBox> arg(p: Parameter<T>): CodeVal<T> {
+        if (p.type == null) throw RuntimeException("Cannot get argument for parameter with a null type! ${p.name}")
+        val arg = argAny(p)
+        if (p.type != arg.type) throw RuntimeException("Expected ${p.type.name}, got ${arg.type.name} instead! ${p.name}")
+        @Suppress("UNCHECKED_CAST")
+        return arg as CodeVal<T>
     }
 }
 
@@ -88,13 +138,13 @@ fun getEvents() = nameToHSEvent.values as Collection<HSEvent<*>>
 fun getEvent(name: String) = nameToHSEvent[name] ?: throw RuntimeException("Unsupported event value! $name")
 private val nameToHSEvent = mutableMapOf<String, HSEvent<*>>()
 
-val EVENT_WORLD_INIT = HSEvent("WORLD_INIT", InstanceEvent::class, values = setOf(EVENT_VAL_WORLD_NAME))
+val EVENT_WORLD_INIT = HSEvent("WORLD_INIT", InstanceEvent::class, values = setOf(EVENT_VAL_WORLD_TITLE))
 val EVENT_PLAYER_CHAT = HSEvent("PLAYER_CHAT", PlayerChatEvent::class, targets = setOf(TARGET_DEFAULT))
 
 data class HSEvent<T : InstanceEvent>(
     override val name: String,
     val baseEventType: KClass<T>,
-    val values: Set<EventValue<*, *>> = setOf(),
+    val values: Set<EventVal<*, *>> = setOf(),
     val targets: Set<EventTarget<*>> = setOf(),
 ) : Invokable {
     init { nameToHSEvent[name] = this }

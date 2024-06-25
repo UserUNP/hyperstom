@@ -103,27 +103,20 @@ fun defaultWorldFiles(i: WorldInfo) = WorldArchiveFiles(
     PolarLoader(PolarWorld().apply { setCompression(PolarWorld.CompressionType.NONE) })
 )
 
-/**
- * Read/write in order:
- *  - name
- *  - owner (optional)
- *  - spawnLoc (optional)
- */
-data class WorldInfo(val name: String, val owner: UUID?, val spawnLoc: Pos?) {
+data class WorldInfo(val title: String, val owner: UUID?, val spawnLoc: Pos?) {
     fun getBytes(): ByteArray = NetworkBuffer.makeArray {
-        it.write(NetworkBuffer.STRING, name)
+        it.write(NetworkBuffer.STRING, title)
         it.writeOptional(NetworkBuffer.OPT_UUID, owner)
         it.writeOptional(NetworkBuffer.OPT_BLOCK_POSITION, spawnLoc)
     }
 }
 
 private fun readWorldInfo(file: ByteArray): WorldInfo {
-    // minestom network buffer
-    val msBuffer = NetworkBuffer(ByteBuffer.wrap(file), false)
-    val name = msBuffer.read(NetworkBuffer.STRING)
-    val owner = msBuffer.readOptional(NetworkBuffer.OPT_UUID)
-    val spawnLoc = msBuffer.readOptional(NetworkBuffer.OPT_BLOCK_POSITION)
-    return WorldInfo(name, owner, spawnLoc?.let { Pos(it) })
+    val buffer = NetworkBuffer(ByteBuffer.wrap(file), false)
+    val title = buffer.read(NetworkBuffer.STRING)
+    val owner = buffer.readOptional(NetworkBuffer.OPT_UUID)
+    val spawnLoc = buffer.readOptional(NetworkBuffer.OPT_BLOCK_POSITION)
+    return WorldInfo(title, owner, spawnLoc?.let { Pos(it) })
 }
 
 /**
@@ -131,9 +124,7 @@ private fun readWorldInfo(file: ByteArray): WorldInfo {
  */
 class WorldVarData(val map: MutableMap<String, ByteArray>) : PersistentData {
     override operator fun get(section: String) = map[section] ?: throw WorldIOException("No such section! $section")
-    override operator fun set(section: String, bytes: ByteArray) {
-        map[section] = bytes
-    }
+    override operator fun set(section: String, bytes: ByteArray) { map[section] = bytes }
 }
 
 private fun readVarData(entry: ArchiveEntry, stream: ArchiveInputStream, varData: WorldVarData) {
