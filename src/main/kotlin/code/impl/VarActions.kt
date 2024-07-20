@@ -1,16 +1,38 @@
-package userunp.hyperstom.code.impl
+package ma.userunp.hyperstom.code.impl
 
-import userunp.hyperstom.code.InstContext
-import userunp.hyperstom.code.InstFunction
-import userunp.hyperstom.code.Parameter
-import userunp.hyperstom.code.VAL_TYPE_VAR
+import ma.userunp.hyperstom.Named
+import ma.userunp.hyperstom.code.*
 
-object AssignVar : InstFunction {
-    private val varParam = Parameter("var", VAL_TYPE_VAR)
-    private val valParam = Parameter<Nothing>("val", dynamicType = true)
-    override val params = arrayOf(varParam)
-    override fun invoke(ctx: InstContext) {
-        val name = ctx.controller.arg(varParam).value.name
-        ctx.controller.frame.vars[name] = ctx.controller.argAny(valParam)
+// any
+
+object InstAssignVar : InstType {
+    override val name = "SET"
+    override val targetClass = TargetClass.NONE
+    private val varParam = ParamSingle("var", ParamTypeVar)
+    private val valParam = ParamSingle("val", ParamTypeAny)
+    private val typeParam = ParamSingle("type", ParamOptType(ParamTypeType, ValTypeParamType.get(ParamTypeAny)))
+    override val params = arrayOf(varParam, valParam, typeParam)
+    override fun exec(ctx: InstContext) {
+        ctx.argCodeVal(valParam)[0].let { c -> ctx.arg(typeParam)[0].let { t -> ctx.arg(varParam)[0].let {
+            if (!t.check(c.type)) throw RuntimeException("Var $it expects type ${t.name}, but got ${c.type.name} instead!")
+            ctx.frame.vars[name] = c
+        } } }
+    }
+}
+
+// txt
+
+object InstToTxt : InstType {
+    override val name = "TXT"
+    override val targetClass = TargetClass.NONE
+    private val varParam = ParamSingle("var", ParamTypeVar)
+    private val valsParam = ParamMulti("vals", ParamTypeAny)
+    override val params = arrayOf(varParam, valsParam)
+    override fun exec(ctx: InstContext) {
+        ctx.frame.vars[ctx.arg(varParam)[0]] =
+            ValTypeTxt.get(txtVal(buildString { for (v in ctx.arg(valsParam)) when (v) {
+                is Named -> v.name
+                else -> v.toString()
+            } }))
     }
 }

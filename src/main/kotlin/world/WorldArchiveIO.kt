@@ -1,138 +1,115 @@
 @file:Suppress("UnstableApiUsage")
 
-package userunp.hyperstom.world
+package ma.userunp.hyperstom.world
 
-import userunp.hyperstom.datastore.PersistentData
-import userunp.hyperstom.getResource
-import net.hollowcube.polar.PolarLoader
+import io.github.oshai.kotlinlogging.KotlinLogging
+import ma.userunp.hyperstom.WorldIOException
+import ma.userunp.hyperstom.code.InstLabelMap
+import ma.userunp.hyperstom.code.ValTypeCInst
+import ma.userunp.hyperstom.code.ValTypeLabel
+import ma.userunp.hyperstom.code.ValTypeStr
+import ma.userunp.hyperstom.getResource
 import net.hollowcube.polar.PolarReader
 import net.hollowcube.polar.PolarWorld
 import net.hollowcube.polar.PolarWriter
 import net.minestom.server.coordinate.Pos
 import net.minestom.server.network.NetworkBuffer
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
-import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream
-import org.apache.commons.io.IOUtils
-import userunp.hyperstom.WorldIOException
-import java.io.ByteArrayInputStream
-import java.io.FileInputStream
-import java.io.FileOutputStream
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream
 import java.nio.ByteBuffer
-import java.util.UUID
+import java.nio.file.Files
+import java.util.*
+import java.util.zip.Deflater
+import kotlin.io.path.Path
+import kotlin.time.measureTime
 
-private const val VAR_DATA_PREFIX = "DATA/"
+private val LOGGER = KotlinLogging.logger {}
+private val DEFAULT_BUILD = PolarReader.read(getResource("BUILD.compressed").readBytes())
+const val WORLDS_DIR = "worlds"
+const val WORLDS_EXT = "hstom"
+private const val WORLDS_MAGIC = 0x48595052
 
-private typealias ArchiveOutputStream = TarArchiveOutputStream
-private typealias ArchiveInputStream = TarArchiveInputStream
-private typealias ArchiveEntry = TarArchiveEntry
+private fun getIn(id: UUID) = ZstdCompressorInputStream(Files.newInputStream(Path(WORLDS_DIR, "$id.$WORLDS_EXT"))).buffered()
+private fun getOut(id: UUID) = ZstdCompressorOutputStream(Files.newOutputStream(Path(WORLDS_DIR, "$id.$WORLDS_EXT")), Deflater.BEST_COMPRESSION).buffered()
 
-private fun getInputStream(id: UUID) = TarArchiveInputStream(GzipCompressorInputStream(FileInputStream("$WORLDS_DIR/$id.$WORLDS_EXT")))
-private fun getOutputStream(id: UUID) = TarArchiveOutputStream(GzipCompressorOutputStream(FileOutputStream("$WORLDS_DIR/$id.$WORLDS_EXT")))
-private fun saveEntry(stream: ArchiveOutputStream, name: String, file: ByteArrayInputStream) {
-    val entry = TarArchiveEntry(name)
-    entry.size = file.available().toLong()
-    stream.putArchiveEntry(entry)
-    IOUtils.copy(file, stream)
-    stream.closeArchiveEntry()
+class WorldArchiveFiles(
+    val info: WorldInfo,
+    val contrib: WorldContrib,
+    val code: WorldCode,
+    val build: PolarWorld,
+)
+
+fun defaultWorldFiles(i: WorldInfo) = WorldArchiveFiles(
+    i, WorldContrib(mutableMapOf()), WorldCode(linkedMapOf()), DEFAULT_BUILD
+)
+
+private interface ArchiveFileType<T : Any> : NetworkBuffer.Type<T>
+
+private object FileTypeInfo : ArchiveFileType<WorldInfo> {
+    override fun write(buffer: NetworkBuffer, value: WorldInfo) {
+        NetworkBuffer.STRING.write(buffer, value.title)
+        NetworkBuffer.OPT_UUID.write(buffer, value.owner)
+        NetworkBuffer.OPT_BLOCK_POSITION.write(buffer, value.spawnLoc)
+    }
+    override fun read(buffer: NetworkBuffer) = WorldInfo(
+        NetworkBuffer.STRING.read(buffer),
+        NetworkBuffer.OPT_UUID.read(buffer),
+        NetworkBuffer.OPT_BLOCK_POSITION.read(buffer)?.let { Pos(it) } ?: BUILD_SPAWN_POINT,
+    )
 }
 
-fun readWorldArchive(id: UUID): WorldArchiveFiles {
-    val stream = getInputStream(id)
-    val filesMap = mutableMapOf<WorldFileType, ByteArray>()
-    val varData = WorldVarData(mutableMapOf())
-    stream.use {
-        var entry = stream.nextEntry
-        while (entry != null) {
-            if (!stream.canReadEntryData(entry)) continue
-            if (entry.name.startsWith(VAR_DATA_PREFIX)) readVarData(entry, stream, varData)
-            else try { filesMap[WorldFileType.valueOf(entry.name)] = stream.readBytes() } catch (_: Exception) {}
-            entry = stream.nextEntry
-        }
-        checkWorldFiles(id, filesMap)
+private object FileTypeContrib : ArchiveFileType<WorldContrib> {
+    override fun write(buffer: NetworkBuffer, value: WorldContrib) {
+        buffer.writeMap(ValTypeStr, NetworkBuffer.Enum(ContribLevel::class.java), value.map)
+    }
+    override fun read(buffer: NetworkBuffer) = WorldContrib(buffer.readMap(
+        NetworkBuffer.STRING, NetworkBuffer.Enum(ContribLevel::class.java), 20,
+    ))
+}
+
+private object FileTypeCode : ArchiveFileType<WorldCode> {
+    override fun write(buffer: NetworkBuffer, value: WorldCode) {
+        val labels = value.getLabels()
+        buffer.writeCollection(ValTypeLabel, labels)
+        for (l in labels) buffer.writeCollection(ValTypeCInst, value.resolveLabel(l))
+    }
+    override fun read(buffer: NetworkBuffer): WorldCode {
+        val labels = buffer.readCollection(ValTypeLabel, Int.MAX_VALUE)
+        val labelsMap: InstLabelMap = LinkedHashMap(labels.size)
+        for (l in labels) labelsMap[l] = buffer.readCollection(ValTypeCInst, Int.MAX_VALUE)
+        return WorldCode(labelsMap)
+    }
+}
+
+private object FileTypeBuild : ArchiveFileType<PolarWorld> {
+    override fun write(buffer: NetworkBuffer, value: PolarWorld) = NetworkBuffer.BYTE_ARRAY.write(buffer,
+        PolarWriter.write(value.apply { setCompression(PolarWorld.CompressionType.NONE) })
+    )
+    override fun read(buffer: NetworkBuffer) = PolarReader.read(NetworkBuffer.BYTE_ARRAY.read(buffer))
+}
+
+private object FileTypeWorld : ArchiveFileType<WorldArchiveFiles> {
+    override fun write(buffer: NetworkBuffer, value: WorldArchiveFiles) {
+        NetworkBuffer.INT.write(buffer, WORLDS_MAGIC)
+        FileTypeInfo.write(buffer, value.info)
+        FileTypeContrib.write(buffer, value.contrib)
+        FileTypeCode.write(buffer, value.code)
+        FileTypeBuild.write(buffer, value.build)
+    }
+    override fun read(buffer: NetworkBuffer): WorldArchiveFiles {
+        if (NetworkBuffer.INT.read(buffer) != WORLDS_MAGIC) throw WorldIOException("Not a hyperstom world!")
         return WorldArchiveFiles(
-            readWorldInfo(filesMap[WorldFileType.INFO]!!), varData,
-            PolarLoader(PolarReader.read(filesMap[WorldFileType.BUILD]!!)),
-            PolarLoader(PolarReader.read(filesMap[WorldFileType.DEV]!!))
+            FileTypeInfo.read(buffer),
+            FileTypeContrib.read(buffer),
+            FileTypeCode.read(buffer),
+            FileTypeBuild.read(buffer),
         )
     }
 }
 
-fun writeWorldArchive(id: UUID, files: WorldArchiveFiles) = getOutputStream(id).use {
-    WorldFileType.INFO.save(files.infoFile(), it)
-    WorldFileType.BUILD.save(files.buildFile(), it)
-    WorldFileType.DEV.save(files.devFile(), it)
-    saveVarData(files.varDataFiles(), it)
-    it.flush()
-}
+fun readWorldArchive(id: UUID) = FileTypeWorld.read(NetworkBuffer(ByteBuffer.wrap(getIn(id).use { it.readAllBytes() })))
 
-private enum class WorldFileType {
-    INFO, BUILD, DEV;
-    fun save(file: ByteArrayInputStream, stream: ArchiveOutputStream) = saveEntry(stream, name, file)
-}
-
-private fun saveVarData(map: Map<String, ByteArrayInputStream>, stream: ArchiveOutputStream) {
-    for ((name, file) in map) saveEntry(stream, name, file)
-}
-
-private fun checkWorldFiles(id: UUID, map: Map<WorldFileType, ByteArray>) {
-    for (type in WorldFileType.entries) {
-        if (map[type] == null) throw WorldIOException("${type.name} is missing from World! $id")
-    }
-}
-
-class WorldArchiveFiles(
-    val info: WorldInfo, val varData: WorldVarData,
-    val build: PolarLoader, val dev: PolarLoader,
-) {
-    fun infoFile() = ByteArrayInputStream(info.getBytes())
-    fun buildFile() = ByteArrayInputStream(PolarWriter.write(build.world()))
-    fun devFile() = ByteArrayInputStream(PolarWriter.write(dev.world()))
-    fun varDataFiles(): MutableMap<String, ByteArrayInputStream> {
-        val map = mutableMapOf<String, ByteArrayInputStream>()
-        for ((section, data) in varData.map) map["$VAR_DATA_PREFIX$section"] = ByteArrayInputStream(data)
-        return map
-    }
-}
-
-fun defaultWorldFiles(i: WorldInfo) = WorldArchiveFiles(
-    i, WorldVarData(mutableMapOf()),
-    PolarLoader(getResource("BUILD")),
-    PolarLoader(PolarWorld().apply { setCompression(PolarWorld.CompressionType.NONE) })
-)
-
-data class WorldInfo(val title: String, val owner: UUID?, val spawnLoc: Pos?) {
-    fun getBytes(): ByteArray = NetworkBuffer.makeArray {
-        it.write(NetworkBuffer.STRING, title)
-        it.writeOptional(NetworkBuffer.OPT_UUID, owner)
-        it.writeOptional(NetworkBuffer.OPT_BLOCK_POSITION, spawnLoc)
-    }
-}
-
-private fun readWorldInfo(file: ByteArray): WorldInfo {
-    val buffer = NetworkBuffer(ByteBuffer.wrap(file), false)
-    val title = buffer.read(NetworkBuffer.STRING)
-    val owner = buffer.readOptional(NetworkBuffer.OPT_UUID)
-    val spawnLoc = buffer.readOptional(NetworkBuffer.OPT_BLOCK_POSITION)
-    return WorldInfo(title, owner, spawnLoc?.let { Pos(it) })
-}
-
-/**
- * Variably sized world data
- */
-class WorldVarData(val map: MutableMap<String, ByteArray>) : PersistentData {
-    override operator fun get(section: String) = map[section] ?: throw WorldIOException("No such section! $section")
-    override operator fun set(section: String, bytes: ByteArray) { map[section] = bytes }
-}
-
-private fun readVarData(entry: ArchiveEntry, stream: ArchiveInputStream, varData: WorldVarData) {
-    val bytes = stream.readBytes()
-    varData[entry.name.removePrefix(VAR_DATA_PREFIX)] = bytes
-}
-
-enum class ContributorLevel {
-    ADMIN, DEVELOPER, BUILDER;
-    fun hasPerm(level: ContributorLevel) = level.ordinal >= ordinal
+fun writeWorldArchive(id: UUID, files: WorldArchiveFiles) = getOut(id).use {
+    val dur = measureTime { it.write(NetworkBuffer.makeArray { FileTypeWorld.write(it, files) }) }
+    LOGGER.info { "Saved world archive $id - $dur" }
 }

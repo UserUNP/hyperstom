@@ -1,36 +1,17 @@
-package userunp.hyperstom.code
+package ma.userunp.hyperstom.code
 
-enum class CodeBlockType(val brackets: Boolean, private val getter: ((data: String) -> Invokable)? = null) {
-    DATA(true, { HSProcess(it) }), // only case for invoking a data code block is for a process
-    EVENT(true, { getEvent(it) }),
-    ACTION(false), SCOPED(true),
-    ;
+enum class CodeBlock(val type: CodeLabelType<*>? = null) {
+    FUNCTION(LabelDataType), PROCESS(LabelDataType),
 
-    fun get(data: String) = getter?.let { it(data) }
-        ?: throw RuntimeException("This code block is not of a root type!")
-}
+    WORLD_EVENT(LabelEventType), DEV_EVENT(LabelEventType),
+    PLAYER_EVENT(LabelEventType), NPC_EVENT(LabelEventType),
 
-enum class CodeBlock(val type: CodeBlockType) {
-    FUNCTION(CodeBlockType.DATA),
-    PROCESS(CodeBlockType.DATA),
+    WORLD_ACTION, VAR_ACTION,
+    PLAYER_ACTION, NPC_ACTION,
+    CONTROL,
 
-    WORLD_EVENT(CodeBlockType.EVENT),
-    PLAYER_EVENT(CodeBlockType.EVENT),
-    NPC_EVENT(CodeBlockType.EVENT),
-    DEV_EVENT(CodeBlockType.EVENT),
+    IF_WORLD(LabelScopedType), IF_VAR(LabelScopedType),
+    IF_PLAYER(LabelScopedType), IF_NPC(LabelScopedType),
 
-    WORLD_ACTION(CodeBlockType.ACTION),
-    PLAYER_ACTION(CodeBlockType.ACTION),
-    NPC_ACTION(CodeBlockType.ACTION),
-    VAR_ACTION(CodeBlockType.ACTION),
-    CONTROL(CodeBlockType.SCOPED),
-
-    IF_WORLD(CodeBlockType.SCOPED),
-    IF_PLAYER(CodeBlockType.SCOPED),
-    IF_NPC(CodeBlockType.SCOPED),
-    IF_VAR(CodeBlockType.SCOPED),
-
-    TARGET(CodeBlockType.SCOPED),
-    REPEAT(CodeBlockType.SCOPED),
-    ;
+    TARGET(LabelScopedType), REPEAT(LabelScopedType),
 }

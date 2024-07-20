@@ -1,12 +1,11 @@
-package userunp.hyperstom.code.impl
+package ma.userunp.hyperstom.code.impl
 
-import userunp.hyperstom.code.InstContext
-import userunp.hyperstom.code.InstFunction
-import userunp.hyperstom.code.Parameter
-import userunp.hyperstom.code.VAL_TYPE_FUNC
+import ma.userunp.hyperstom.code.*
 
-object CallFunction : InstFunction {
-    private val funcParam = Parameter("func", VAL_TYPE_FUNC)
+object InstCallFunction : InstType {
+    override val name = "CALL"
+    override val targetClass = TargetClass.NONE
+    private val funcParam = ParamSingle("func", ParamTypeLabel)
     override val params = arrayOf(funcParam)
-    override fun invoke(ctx: InstContext) = ctx.controller.jumpTo(ctx.controller.arg(funcParam).value, 0)
+    override fun exec(ctx: InstContext) = ctx.jumpTo(ctx.arg(funcParam)[0], 0)
 }

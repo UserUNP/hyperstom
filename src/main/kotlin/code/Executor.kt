@@ -1,93 +1,157 @@
 @file:Suppress("UnstableApiUsage")
 
-package userunp.hyperstom.code
+package ma.userunp.hyperstom.code
 
 import kotlinx.coroutines.*
-import kotlinx.serialization.Serializable
-import userunp.hyperstom.world.WorldManager
-import net.minestom.server.event.player.PlayerChatEvent
+import net.kyori.adventure.audience.Audience
 import net.minestom.server.event.trait.InstanceEvent
+import ma.userunp.hyperstom.Named
+import net.minestom.server.listener.manager.PacketListenerManager
+import java.util.UUID
 import kotlin.reflect.KClass
-import kotlin.reflect.cast
+import kotlin.reflect.safeCast
 
-interface Invokable {
-    val name: String
-    fun check(ctx: InvokeContext)
+interface CodeInvokable {
+    val id: String
 }
+
+interface CodeLabelType<T : CodeInvokable> : Named {
+    fun get(name: String): T
+}
+
+private inline fun <T : CodeInvokable> implLabelType(n: String, crossinline g: (String) -> T) = object : CodeLabelType<T> {
+    override val name = n
+    override fun get(name: String) = g(name)
+}
+
+data class CodeLabel<T : CodeInvokable>(val type: CodeLabelType<T>, val label: String)
+
+private fun <T : CodeInvokable> CodeLabelType<T>.label(n: String) = CodeLabel(this, n)
 
 /* TODO:
 find out how to implement a minestom scheduler utilizing kotlin coroutines
-because trying to run asynchronously outside the tick thread isn't the best idea
- */
+because trying to run asynchronously outside the event caller's tick thread or scheduler isn't the best idea
+*/
 
 data class InvokeContext(
-    val invokable: Invokable,
+    val invokable: CodeInvokable,
     val msEvent: InstanceEvent,
     val instList: InstList,
-    val label: CodeLabel
+    val label: CodeLabel<*>,
 )
 
-interface Invoker {  //TODO: a debug invoker for debugging, and maybe misc invokers for fun
+interface CodeInvoker {  //TODO: a debug invoker for debugging, and maybe misc invokers for fun
     val scope: CoroutineScope
-    fun exec(ctx: InvokeContext, startIndex: Int, labelResolver: CodeLabelResolver)
+    fun exec(ctx: InvokeContext, labelResolver: CodeLabelResolver)
 }
 
-class RuntimeInvoker(val world: WorldManager) : Invoker {
+class RuntimeInvoker(private val id: UUID) : CodeInvoker {
     override val scope = CoroutineScope(Dispatchers.Default)
-    override fun exec(ctx: InvokeContext, startIndex: Int, labelResolver: CodeLabelResolver) {
-        scope.launch(CoroutineName("${world.id}:${ctx.invokable.name}")) {
-            val controller = ExecController(ctx, startIndex, labelResolver)
+    override fun exec(ctx: InvokeContext, labelResolver: CodeLabelResolver) {
+        scope.launch(CoroutineName("$id:${ctx.invokable.id}")) {
+            //TODO: customizable code executor or something
+            val executor = CodeExecutorImpl(ctx, 0, labelResolver)
             try {
-                for (inst in controller) {
+                for (inst in executor) {
                     val targetClass = inst.target.targetClass()
-                    if (!targetClass.worksWith(inst.props.targetClass)) throw RuntimeException(
-                        "Cannot use target with class $targetClass against the instruction ${inst.props.name}!"
+                    if (!targetClass.worksWith(inst.type.targetClass)) throw RuntimeException(
+                        "Cannot use target with class $targetClass against the instruction ${inst.type.name}!"
                     )
-                    inst(controller, ctx.msEvent.instance, inst.target.get(world, ctx))
+                    try {
+                        inst.type.exec(InstContext(
+                            executor, ctx.msEvent.instance
+                        ) { inst.target.get(ctx.msEvent) })
+                    } catch (e: Exception) { throw RuntimeException("Error whilst executing ${inst.type.name}", e) }
                 }
             } catch(e: Exception) { throw RuntimeException("Runtime exception.", e) }
         }
     }
 }
 
-fun eventLabel(e: HSEvent<*>) = CodeLabel(CodeBlockType.EVENT, e.name)
-fun dataLabel(name: String) = CodeLabel(CodeBlockType.DATA, name)
-fun scopedLabel(name: String) = CodeLabel(CodeBlockType.SCOPED, name)
+interface EventDataProcessor<T : InstanceEvent, out S : Any> : Named {
+    val eventType: KClass<T>
+    fun get(msEvent: T): S
+}
 
-@Serializable data class CodeLabel(val type: CodeBlockType, override val name: String) : CodeValBox
+fun <T : InstanceEvent, S : InstanceEvent, U : Any> EventDataProcessor<S, U>.get(msEvent: T) =
+    this.get(eventType.safeCast(msEvent) ?:
+    throw RuntimeException("Event type ${eventType.simpleName} is not compatible with ${msEvent::class.simpleName}!"))
+
+typealias EventTarget<T> = EventDataProcessor<T, Set<Audience>>
+typealias EventVal<T, S> = EventDataProcessor<T, CodeVal<S>>
+
+enum class CodeEvent(
+    //TODO: use these in dev mode to let the user access these type of code values
+    val values: Set<EventVal<*, *>> = setOf(),
+    val targets: Set<EventTarget<*>> = setOf(),
+) : CodeInvokable {
+    // world
+    INIT,
+    // entity
+    CHAT(targets = setOf(TargetDefault), values = setOf(EventValChatMsg)),
+    ;
+    override val id = name
+}
+
+class CodeProcess(override val id: String) : CodeInvokable
+//TODO: maybe process parameters once i implement the param val type
+
+object LabelEventType : CodeLabelType<CodeEvent> by implLabelType("E", CodeEvent::valueOf)
+fun eventLabel(e: CodeEvent) = LabelEventType.label(e.id)
+
+object LabelDataType : CodeLabelType<CodeProcess> by implLabelType("D", ::CodeProcess)
+fun dataLabel(n: String) = LabelDataType.label(n)
+
+//TODO: idfk how this would work, MAYBE this needs rethinking
+object LabelScopedType : CodeLabelType<Nothing> by implLabelType("S", { TODO("Idk how to turn a scoped label into an invokable!") })
+fun scopedLabel(n: String) = LabelScopedType.label(n)
+
+private typealias CodeVarMap = MutableMap<String, CodeVal<*>>
+
+class ExecFrame<T : CodeInvokable>(
+    val label: CodeLabel<T>,
+    val instList: InstList,
+    var instIndex: Int,
+    val vars: CodeVarMap = mutableMapOf(),
+    var previous: ExecFrame<*>? = null,
+)
 
 fun interface CodeLabelResolver {
-    fun resolveLabel(label: CodeLabel): InstList
+    fun resolveLabel(label: CodeLabel<*>): InstList
 }
 
 fun interface CodeVarResolver {
     fun resolveVar(name: String): CodeVal<*>
 }
 
-typealias CodeVars = MutableMap<String, CodeVal<*>>
+interface CodeArgResolver {
+    fun <T : Any> resolveRuntimeArg(c: CodeVal<T>): CodeVal<*>
+    fun <T : Any> argCodeVal(p: ParamNode<T>): List<CodeVal<T>>
+    fun <T : Any> arg(p: ParamNode<T>): List<T>
+}
 
-data class ExecFrame(
-    val label: CodeLabel,
-    val instList: InstList,
-    var instIndex: Int,
-    val vars: CodeVars = mutableMapOf(),
-    var previous: ExecFrame? = null,
-)
+interface CodeFlowControl {
+    var frame: ExecFrame<*>
+    fun jumpTo(label: CodeLabel<*>, startIndex: Int)
+}
 
-class ExecController(
+interface CodeExecutor : CodeVarResolver, CodeArgResolver, CodeFlowControl, Iterable<CodeInst>, Iterator<CodeInst>
+
+private class CodeExecutorImpl(
     ctx: InvokeContext,
     startIndex: Int,
     private val labelResolver: CodeLabelResolver,
-) : CodeVarResolver {
-    var frame = ExecFrame(ctx.label, ctx.instList, startIndex)
-    private lateinit var currInst: Instruction
+) : CodeExecutor {
+    override var frame = ExecFrame(ctx.label, ctx.instList, startIndex)
+    private lateinit var currInst: CodeInst
+    private val msEvent = ctx.msEvent
 
-    operator fun next(): Instruction {
+    override operator fun next(): CodeInst {
         currInst = frame.instList[frame.instIndex++]
         return currInst
     }
 
-    operator fun hasNext(): Boolean {
+    override operator fun hasNext(): Boolean {
         val hasNext = frame.instIndex <= frame.instList.size-1
         if (!hasNext) frame.previous?.let {
             frame = it
@@ -96,61 +160,31 @@ class ExecController(
         return hasNext
     }
 
-    operator fun iterator() = this
+    override operator fun iterator() = this
 
-    fun jumpTo(label: CodeLabel, startIndex: Int) {
+    override fun jumpTo(label: CodeLabel<*>, startIndex: Int) {
         val instList = labelResolver.resolveLabel(label)
         frame = ExecFrame(label, instList, startIndex, previous = frame)
     }
 
     override fun resolveVar(name: String) = frame.vars[name]
-        ?: (if (frame.label.type == CodeBlockType.SCOPED) frame.previous?.let { it.vars[name] } else null)
+        ?: (if (frame.label.type == LabelScopedType) frame.previous?.let { it.vars[name] } else null)
         ?: throw RuntimeException("No such var! $name")
 
-    fun argAny(p: Parameter<*>): CodeVal<*> {
-        val codeVal = currInst.args[p.name] ?: throw RuntimeException("No such argument! ${p.name}")
-        return when (codeVal.type) {
-            VAL_TYPE_VAR -> resolveVar((codeVal.value as StrVal).name)
-            else -> codeVal
-        }
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : Any> resolveRuntimeArg(c: CodeVal<T>) = when (c.type) {
+        ValTypeVar -> resolveVar(c.value as String)
+        ValTypeEventVal -> (c.value as EventVal<*, *>).get(msEvent)
+        else -> throw RuntimeException("${c.type} is not a runtime code val type!")
     }
 
-    fun <T : CodeValBox> arg(p: Parameter<T>): CodeVal<T> {
-        if (p.type == null) throw RuntimeException("Cannot get argument for parameter with a null type! ${p.name}")
-        val arg = argAny(p)
-        if (p.type != arg.type) throw RuntimeException("Expected ${p.type.name}, got ${arg.type.name} instead! ${p.name}")
-        @Suppress("UNCHECKED_CAST")
-        return arg as CodeVal<T>
+    override fun <T : Any> argCodeVal(p: ParamNode<T>): List<CodeVal<T>> {
+        val vals = (currInst.args[p.name] ?: throw RuntimeException("Unknown param! ${p.name}"))
+        return vals.toMutableList().apply { if (any { it.type.isRuntime() }) {
+            replaceAll { if (it.type.isRuntime()) resolveRuntimeArg(it) else it }
+            p.compute(ParamNodeResult(0, size, this, mutableMapOf(p.name to this)))
+        } } as List<CodeVal<T>> //TODO: find a better way to do this
     }
-}
 
-data class EventDataContext<T : InstanceEvent>(val event: T, val world: WorldManager)
-abstract class EventDataProcessor<T : InstanceEvent, out S>(
-    override val name: String,
-    private val eventType: KClass<T>,
-    private val getter: EventDataContext<T>.() -> S
-) : CodeValBox {
-    fun get(ctx: EventDataContext<T>) = getter(ctx)
-    fun get(world: WorldManager, ctx: InvokeContext) = getter(EventDataContext(eventType.cast(ctx.msEvent), world))
-}
-
-fun getEvents() = nameToHSEvent.values as Collection<HSEvent<*>>
-fun getEvent(name: String) = nameToHSEvent[name] ?: throw RuntimeException("Unsupported event value! $name")
-private val nameToHSEvent = mutableMapOf<String, HSEvent<*>>()
-
-val EVENT_WORLD_INIT = HSEvent("WORLD_INIT", InstanceEvent::class, values = setOf(EVENT_VAL_WORLD_TITLE))
-val EVENT_PLAYER_CHAT = HSEvent("PLAYER_CHAT", PlayerChatEvent::class, targets = setOf(TARGET_DEFAULT))
-
-data class HSEvent<T : InstanceEvent>(
-    override val name: String,
-    val baseEventType: KClass<T>,
-    val values: Set<EventVal<*, *>> = setOf(),
-    val targets: Set<EventTarget<*>> = setOf(),
-) : Invokable {
-    init { nameToHSEvent[name] = this }
-    override fun check(ctx: InvokeContext) {} //TODO: disallow unsupported actions in certain events
-}
-
-data class HSProcess(override val name: String) : Invokable {
-    override fun check(ctx: InvokeContext) {} //TODO: process parameters & check here
+    override fun <T : Any> arg(p: ParamNode<T>) = argCodeVal(p).map(CodeVal<T>::value)
 }

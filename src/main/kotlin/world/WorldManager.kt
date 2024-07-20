@@ -1,29 +1,25 @@
 @file:Suppress("UnstableApiUsage")
 
-package userunp.hyperstom.world
+package ma.userunp.hyperstom.world
 
-import userunp.hyperstom.code.*
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ma.userunp.hyperstom.*
+import ma.userunp.hyperstom.code.*
+import ma.userunp.hyperstom.code.impl.*
+import net.hollowcube.polar.PolarLoader
 import net.minestom.server.MinecraftServer
 import net.minestom.server.coordinate.Pos
 import net.minestom.server.instance.InstanceContainer
 import net.minestom.server.instance.SharedInstance
-import net.minestom.server.instance.block.Block
 import net.minestom.server.world.DimensionType
-import userunp.hyperstom.*
-import userunp.hyperstom.datastore.*
 import java.io.File
-import java.util.UUID
-
-const val WORLDS_DIR = "worlds"
-const val WORLDS_EXT = "hstom"
+import java.util.*
+import kotlin.time.measureTime
 private val LOGGER = KotlinLogging.logger {}
 
 val BUILD_SPAWN_POINT = Pos(0.0, 65.0, 0.0)
-val DEV_SPAWN_POINT = Pos(0.0, 65.5,  0.0)
 
-val worlds = mutableMapOf<UUID, WorldManager>()
-fun getWorld(id: UUID) = worlds[id] ?: throw NullPointerException("No such world! $id")
+val worlds = mutableMap<UUID, WorldManager>()
 
 fun initWorlds() {
     val dir = File(WORLDS_DIR)
@@ -35,15 +31,16 @@ fun initWorlds() {
         val id = UUID.fromString(str.replace(".$WORLDS_EXT", ""))
         if (worlds.contains(id)) throw WorldIOException("Duplicate world id! $id")
         if (id == HUB_WORLD_ID) containsHub = true
-        val world = WorldManager(id, readWorldArchive(id))
-        val code = readWorldCode(world)
-        code({ world.play }, eventLabel(EVENT_WORLD_INIT), world.runtimeInvoker)
+        try {
+            val world = WorldManager(id, readWorldArchive(id))
+            world.files.code.invoke({ world.play }, eventLabel(CodeEvent.INIT), world.runtimeInvoker)
+        } catch (e: Exception) { throw RuntimeException("Couldn't initialize world! $id", e) }
     }
     if (!containsHub) {
         LOGGER.warn { "Couldn't find hub world. Creating." }
         val files = defaultWorldFiles(HUB_WORLD_INFO)
-        writeWorldArchive(HUB_WORLD_ID, files)
         WorldManager(HUB_WORLD_ID, files)
+        writeWorldArchive(HUB_WORLD_ID, files)
     }
 }
 
@@ -52,73 +49,57 @@ fun shutdownWorlds() {
     for ((id, w) in worlds) writeWorldArchive(id, w.files)
 }
 
-fun readWorldContributors(world: WorldManager) = PersistentStore(world).use { it.read(StoreWorldContributors::class) }
-fun readWorldCode(world: WorldManager) = PersistentStore(world).use { it.read(StoreWorldCode::class) }
-
-class WorldManager(val id: UUID, val files: WorldArchiveFiles) : StoreDataProvider<WorldVarData> {
-    val info = files.info
+class WorldManager(val id: UUID, val files: WorldArchiveFiles) {
     val build = InstanceContainer(
-        UUID.nameUUIDFromBytes("$id.$WORLDS_EXT/$id.build".toByteArray()),
+        UUID.nameUUIDFromBytes("$WORLDS_EXT/$id.build".toByteArray()),
         DimensionType.OVERWORLD,
-        files.build,
-    )
-    val dev = InstanceContainer(
-        UUID.nameUUIDFromBytes("$WORLDS_EXT/$id.dev".toByteArray()),
-        DimensionType.OVERWORLD,
-        files.dev,
+        PolarLoader(files.build),
     )
     val play = SharedInstance(UUID.nameUUIDFromBytes("$WORLDS_EXT/$id.play".toByteArray()), build)
 
-    val runtimeInvoker = RuntimeInvoker(this)
+    val runtimeInvoker = RuntimeInvoker(id)
 
     init {
-        worlds[id] = this
-        initWorldModes(this, MinecraftServer.getGlobalEventHandler())
-
-        val instanceManager = MinecraftServer.getInstanceManager()
-        dev.setGenerator { unit ->
-            val modifier = unit.modifier()
-            modifier.fillHeight(64, 65, Block.GRASS_BLOCK)
-            modifier.fillHeight(58, 63, Block.STONE)
-        }
-        instanceManager.registerInstance(build)
-        instanceManager.registerInstance(dev)
-        instanceManager.registerSharedInstance(play)
-        LOGGER.info { "Registered world $id." }
-
         //TODO: remove this shit
-        PersistentStore(this).use { it.write(StoreWorldCode(mutableMapOf(
-            dataLabel("__debug") to mutableListOf(
-                Instruction(InstProperties.DEBUG_FRAME, EMPTY_ARGS),
-            ),
-            dataLabel("test") to mutableListOf(
-                Instruction(InstProperties.SEND_MESSAGE, mutableMapOf(
-                    "msg" to CodeVal(VAL_TYPE_TXT, TxtVal(
-                        MM.deserialize("<gradient:blue:aqua:blue>Can also call functions (jump to labels)")
+        val dur = measureTime {
+            files.code.apply {
+                set(dataLabel("__debug"), mutableListOf(
+                    CodeInst(InstDebugFrame, mutableListOf()),
+                ))
+                set(dataLabel("test"), mutableListOf(
+                    CodeInst(InstSendMessage, mutableListOf(
+                        ValTypeTxt.get(txtVal("<gradient:blue:aqua:blue>Can also call functions (jump to labels)")),
+                    ), TargetDefault),
+                    CodeInst(InstAssignVar, mutableListOf(
+                        ValTypeVar.get("testvar"),
+                        ValTypeTxt.get(txtVal("<gradient:yellow:gold:yellow>And assign & resolve variables (at runtime)</gradient> you sent the message: <gradient:dark_green:green:dark_green>")),
                     )),
-                ), TARGET_DEFAULT),
-                Instruction(InstProperties.ASSIGN_VAR, mutableMapOf(
-                    "var" to CodeVal(VAL_TYPE_VAR, StrVal("test")),
-                    "val" to CodeVal(VAL_TYPE_TXT, TxtVal(
-                        MM.deserialize("<gradient:yellow:gold:yellow>And assign & resolve variables (at runtime)")
+                    CodeInst(InstToTxt, mutableListOf(
+                        ValTypeVar.get("testvar"),
+                        ValTypeVar.get("testvar"),
+                        ValTypeEventVal.get(EventValChatMsg),
+                    ), TargetDefault),
+                    CodeInst(InstSendMessage, mutableListOf(
+                        ValTypeVar.get("testvar"),
+                    ), TargetDefault),
+                ))
+                set(eventLabel(CodeEvent.CHAT), mutableListOf(
+                    CodeInst(InstSendMessage, mutableListOf(
+                        ValTypeTxt.get(txtVal("<gradient:red:dark_red:red>Can target & send messages now!")),
+                    ), TargetDefault),
+                    CodeInst(InstCallFunction, mutableListOf(
+                        ValTypeLabel.get(dataLabel("test")),
                     )),
-                )),
-                Instruction(InstProperties.SEND_MESSAGE, mutableMapOf(
-                    "msg" to CodeVal(VAL_TYPE_VAR, StrVal("test")),
-                ), TARGET_DEFAULT),
-            ),
-            eventLabel(EVENT_PLAYER_CHAT) to mutableListOf(
-                Instruction(InstProperties.SEND_MESSAGE, mutableMapOf(
-                    "msg" to CodeVal(VAL_TYPE_TXT, TxtVal(
-                        MM.deserialize("<gradient:red:dark_red:red>Can target & send messages now!")
-                    )),
-                ), TARGET_DEFAULT),
-                Instruction(InstProperties.CALL_FUNCTION, mutableMapOf(
-                    "func" to CodeVal(VAL_TYPE_FUNC, dataLabel("test")),
-                )),
-            ),
-        ))) }
-    }
+                ))
+            }
 
-    override fun data() = files.varData
+            val instanceManager = MinecraftServer.getInstanceManager()
+            instanceManager.registerInstance(build)
+            instanceManager.registerSharedInstance(play)
+
+            worlds[id] = this
+            initWorldModes(this, MinecraftServer.getGlobalEventHandler())
+        }
+        LOGGER.info { "Loaded world $id - $dur" }
+    }
 }

@@ -1,86 +1,110 @@
-package userunp.hyperstom.code
+@file:Suppress("UnstableApiUsage")
 
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.modules.PolymorphicModuleBuilder
-import kotlinx.serialization.modules.subclass
-import net.kyori.adventure.text.Component
-import userunp.hyperstom.Identifiable
-import userunp.hyperstom.IdentifiableSerializer
-import userunp.hyperstom.MM
-import kotlin.reflect.KClass
+package ma.userunp.hyperstom.code
 
-private class CodeValBoxSerializer<T : CodeValBox>(private val type: CodeValType<T>) : KSerializer<T> {
-    override val descriptor = PrimitiveSerialDescriptor(type.name, PrimitiveKind.STRING)
-    override fun deserialize(decoder: Decoder) = type.deserialize(decoder.decodeString())
-    override fun serialize(encoder: Encoder, value: T) = encoder.encodeString(value.name)
+import ma.userunp.hyperstom.*
+import net.minestom.server.item.ItemStack
+import net.minestom.server.item.Material
+import net.minestom.server.network.NetworkBuffer
+import net.minestom.server.particle.Particle
+import net.minestom.server.potion.PotionEffect
+import net.minestom.server.sound.SoundEvent
+import net.kyori.adventure.text.TextComponent
+
+interface CodeValType<T : Any> : Named, NetworkBuffer.Type<T>
+
+private fun <T : Any> implType(n: String, t: NetworkBuffer.Type<T>) =
+    object : CodeValType<T>, NetworkBuffer.Type<T> by t { override val name = n }
+private fun <T : Named> implNamedType(n: String, r: NamedRegistry<T>) = implType(n, ValTypeStr.map(r::get, Named::name))
+
+private object PlaceholderType : NetworkBuffer.Type<Nothing> {
+    override fun write(buffer: NetworkBuffer, value: Nothing?) { TODO("Not yet implemented") }
+    override fun read(buffer: NetworkBuffer): Nothing { TODO("Not yet implemented") }
 }
 
-sealed interface CodeValBox : Identifiable
-data object PlaceholderVal : CodeValBox { override val name get() = TODO("placeholder!") }
-data object NullVal : CodeValBox { override val name = "(null)" }
-data class StrVal(override val name: String) : CodeValBox
-data class NumVal(val num: Float) : CodeValBox { override val name = "$num" }
-data class BoolVal(val bool: Boolean) : CodeValBox { override val name = "$bool" }
-data class TxtVal(val txt: Component) : CodeValBox { override val name = MM.serialize(txt) }
+private fun placeholderType(n: String) = implType(n, PlaceholderType)
 
-val codeValPolymorphic: PolymorphicModuleBuilder<CodeValBox>.() -> Unit = {
-    subclass(CodeValBoxSerializer(VAL_TYPE_NULL))
-    subclass(CodeValBoxSerializer(VAL_TYPE_TYPE))
-    subclass(CodeValBoxSerializer(VAL_TYPE_EVENT_VAL))
-    subclass(CodeValBoxSerializer(VAL_TYPE_TARGET))
-    subclass(CodeValBoxSerializer(VAL_TYPE_FUNC))
-
-    subclass(CodeValBoxSerializer(VAL_TYPE_STR))
-    subclass(CodeValBoxSerializer(VAL_TYPE_NUM))
-    subclass(CodeValBoxSerializer(VAL_TYPE_BOOL))
-
-    subclass(CodeValBoxSerializer(VAL_TYPE_TXT))
+private object NullType : NetworkBuffer.Type<Unit> {
+    override fun write(buffer: NetworkBuffer, value: Unit?) {}
+    override fun read(buffer: NetworkBuffer) {}
 }
 
-fun getCodeValType(name: String) = nameToCodeValType[name] ?: throw RuntimeException("Unsupported code value type! $name")
-private val nameToCodeValType = mutableMapOf<String, CodeValType<*>>()
-private val typeToCodeValType = mutableMapOf<KClass<*>, CodeValType<*>>()
+class CodeTxt(val txt: String, comp: TextComponent) : TextComponent by comp
+fun txtVal(t: String) = CodeTxt(t, MM.deserialize(t) as TextComponent)
 
-private fun placeholder(n: String) = CodeValType(n, PlaceholderVal::class) { TODO("placeholder!") }
+// primitive
+
+object ValTypeNull : CodeValType<Unit> by implType("NUL", NullType)
+object ValTypeStr : CodeValType<String> by implType("STR", NetworkBuffer.STRING)
+object ValTypeNum : CodeValType<Float> by implType("NUM", NetworkBuffer.FLOAT)
+object ValTypeBool : CodeValType<Boolean> by implType("BLN", NetworkBuffer.BOOLEAN)
+object ValTypeExpr : CodeValType<Nothing> by placeholderType("XPR") //TODO: evaluate vars n math and concat them to strings or used as a number
+object ValTypeList : CodeValType<Nothing> by placeholderType("ARR") //TODO: primitive, but its actually between reflection & internal and this is annoying
 
 // reflection
-val VAL_TYPE_NULL = CodeValType("NULL", NullVal::class) { NullVal }
-val VAL_TYPE_TYPE = CodeValType("TYPE", CodeValType::class) { getCodeValType(it) }
-val VAL_TYPE_PARAM = placeholder("PARAM")
-val VAL_TYPE_VAR = CodeValType("VAR", StrVal::class, true) { StrVal(it) }
-val VAL_TYPE_GLOBAL = placeholder("GLOBAL")
-val VAL_TYPE_EVENT_VAL = CodeValType("EVENT_VAL", EventVal::class) { getEventVal(it) }
-val VAL_TYPE_TARGET = CodeValType("TARGET", EventTarget::class) { getEventTarget(it) }
-val VAL_TYPE_FUNC = CodeValType("FUNC", CodeLabel::class) { dataLabel(it) }
-// primitive
-val VAL_TYPE_STR = CodeValType("STR", StrVal::class) { StrVal(it) }
-val VAL_TYPE_NUM = CodeValType("NUM", NumVal::class) { NumVal(it.toFloat()) }
-val VAL_TYPE_BOOL = CodeValType("BOOL", BoolVal::class) { BoolVal(it.toBoolean()) }
-val VAL_TYPE_LIST = placeholder("LIST")
-val VAL_TYPE_EXPR = placeholder("EXPR") //TODO: evaluate vars n math and concat them to strings or used as a number
-// minecraft
-val VAL_TYPE_TXT = CodeValType("TXT", TxtVal::class) { TxtVal(MM.deserialize(it)) }
-val VAL_TYPE_ITEM = placeholder("ITEM") //TODO: this is annoying because i have to waste storing the itemstack for mc and the item data for hyperstom
-val VAL_TYPE_PARTICLE = placeholder("PARTICLE") //TODO: bunch of fields
 
-private object CodeValueTypeSerializer : IdentifiableSerializer<CodeValType<*>>(::getCodeValType)
-@Serializable(CodeValueTypeSerializer::class) data class CodeValType<T : CodeValBox>(
-    override val name: String,
-    val typeClass: KClass<T>,
-    val runtime: Boolean = false,
-    private val getter: (name: String) -> T,
-) : CodeValBox {
-    init {
-        nameToCodeValType[name] = this
-        typeToCodeValType[typeClass] = this
+object ValTypeParamType : CodeValType<ParamType<*>> by implNamedType("PTYP", RegistryParamTypes) //TODO: should not be restricted to a registry but whatever there's no struct or need for runtime param types
+object ValTypeLabelType : CodeValType<CodeLabelType<*>> by implNamedType("LTYP", RegistryLabelTypes)
+object ValTypeLabel : CodeValType<CodeLabel<*>> by implType("L", object : NetworkBuffer.Type<CodeLabel<*>> {
+    override fun write(buffer: NetworkBuffer, value: CodeLabel<*>) {
+        ValTypeLabelType.write(buffer, value.type)
+        ValTypeStr.write(buffer, value.label)
     }
-    fun deserialize(data: String) = getter(data)
+    override fun read(buffer: NetworkBuffer) = CodeLabel(ValTypeLabelType.read(buffer), ValTypeStr.read(buffer))
+})
+object ValTypeTarget : CodeValType<EventTarget<*>> by implNamedType("TRGT", RegistryTargets)
+object ValTypeEventVal : CodeValType<EventVal<*, *>> by implNamedType("EVAL", RegistryEventVals)
+object ValTypeVar : CodeValType<String> by implType("V", ValTypeStr)
+object ValTypeParam : CodeValType<Nothing> by placeholderType("P")
+object ValTypeGlobal : CodeValType<Nothing> by placeholderType("G")
+
+// internal (the C stands for Code (not the lang C))
+
+object ValTypeCType : CodeValType<CodeValType<*>> by implNamedType("#", RegistryValTypes)
+@Suppress("UNCHECKED_CAST")
+object ValTypeCVal : CodeValType<CodeVal<*>> by implType("#", object : NetworkBuffer.Type<CodeVal<*>> {
+    override fun write(buffer: NetworkBuffer, value: CodeVal<*>) {
+        ValTypeCType.write(buffer, value.type)
+        (value.type as CodeValType<Any>).write(buffer, value.value)
+    }
+    override fun read(buffer: NetworkBuffer): CodeVal<*> {
+        val type = ValTypeCType.read(buffer)
+        if (type is ValTypeNull) return NULL_VALUE
+        val value = type.read(buffer)
+        return CodeVal(type as CodeValType<Any>, value)
+    }
+})
+object ValTypeCInstType : CodeValType<InstType> by implNamedType("#", RegistryInstTypes)
+object ValTypeCInst : CodeValType<CodeInst> by implType("#", object : NetworkBuffer.Type<CodeInst> {
+    override fun write(buffer: NetworkBuffer, value: CodeInst) {
+        ValTypeCInstType.write(buffer, value.type)
+        ValTypeTarget.write(buffer, value.target)
+        buffer.writeCollection(ValTypeCVal, value.rawArgs)
+    }
+    override fun read(buffer: NetworkBuffer): CodeInst {
+        val props = ValTypeCInstType.read(buffer)
+        val target = ValTypeTarget.read(buffer)
+        val args = buffer.readCollection(ValTypeCVal, Int.MAX_VALUE)
+        return CodeInst(props, args, target)
+    }
+})
+
+// minecraft
+
+object ValTypeTxt : CodeValType<CodeTxt> by implType("TXT", ValTypeStr.map(::txtVal, CodeTxt::txt))
+object ValTypeMat : CodeValType<Material> by implType("MAT", Material.NETWORK_TYPE)
+object ValTypePot : CodeValType<PotionEffect> by implType("POT", PotionEffect.NETWORK_TYPE)
+object ValTypeVfx : CodeValType<Particle> by implType("VFX", Particle.NETWORK_TYPE)
+object ValTypeSnd : CodeValType<SoundEvent> by implType("SND", SoundEvent.NETWORK_TYPE)
+object ValTypeItem : CodeValType<ItemStack> by implType("ITEM", ItemStack.STRICT_NETWORK_TYPE)
+
+fun <T : Any> CodeValType<T>.get(value: T) = CodeVal(this, value)
+
+fun CodeValType<*>.isRuntime() = when (this) {
+    ValTypeVar, ValTypeEventVal -> true
+    else -> false
 }
 
-@Serializable data class CodeVal<T : CodeValBox>(val type: CodeValType<T>, val value: T)
-val NULL_VALUE = CodeVal(VAL_TYPE_NULL, NullVal)
+class CodeVal<T : Any>(val type: CodeValType<T>, val value: T)
+val NULL_VALUE = CodeVal(ValTypeNull, Unit)
+fun CodeVal<*>.isNull() = this == NULL_VALUE

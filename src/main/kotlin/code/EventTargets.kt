@@ -1,47 +1,63 @@
 @file:Suppress("UnstableApiUsage")
 
-package userunp.hyperstom.code
+package ma.userunp.hyperstom.code
 
-import kotlinx.serialization.Serializable
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.audience.ForwardingAudience
 import net.minestom.server.entity.Entity
+import net.minestom.server.entity.LivingEntity
 import net.minestom.server.entity.Player
 import net.minestom.server.event.player.PlayerEntityInteractEvent
 import net.minestom.server.event.trait.EntityInstanceEvent
 import net.minestom.server.event.trait.InstanceEvent
-import userunp.hyperstom.IdentifiableSerializer
 import kotlin.reflect.KClass
 
-fun getEventTarget(name: String) = nameToEventTarget[name] ?: throw RuntimeException("Unsupported code target! $name")
-private val nameToEventTarget = mutableMapOf<String, EventTarget<*>>()
+private fun <T : InstanceEvent> implTarget(n: String, e: KClass<T>, g: (T) -> Set<Audience>) = object : EventTarget<T> {
+    override val name = n
+    override val eventType = e
+    override fun get(msEvent: T) = g(msEvent)
+}
 
-class EntityAsAudience(val entity: Entity) : Audience
-@Suppress("OverrideOnly") fun ForwardingAudience.entities() = audiences().filterIsInstance<EntityAsAudience>()
-
-private object EventTargetSerializer : IdentifiableSerializer<EventTarget<*>>(::getEventTarget)
-@Serializable(EventTargetSerializer::class) class EventTarget<T : InstanceEvent>(
-    name: String,
-    eventType: KClass<T>,
-    get: EventDataContext<T>.() -> Set<Audience>,
-) : EventDataProcessor<T, Set<Audience>>(name, eventType, get)
+class NPCAsAudience(val entity: Entity) : Audience
+@Suppress("OverrideOnly") fun ForwardingAudience.nonPlayers() = audiences().filterIsInstance<NPCAsAudience>()
+@Suppress("OverrideOnly") fun ForwardingAudience.players() = audiences().filterIsInstance<Player>()
+@Suppress("OverrideOnly") fun ForwardingAudience.livingEntities() = audiences().mapNotNull {
+    if (it is LivingEntity) it else if (it is NPCAsAudience && it.entity is LivingEntity) it.entity else null
+}
 
 // non-event specific
-val TARGET_NONE = reg("NONE", InstanceEvent::class) { setOf() }
-val TARGET_PLAYERS_ALL = reg("PLAYERS_ALL", InstanceEvent::class) { event.instance.players }
-val TARGET_PLAYER_RAND = reg("PLAYER_RAND", InstanceEvent::class) { setOf(TARGET_PLAYERS_ALL.get(this).random()) }
-val TARGET_NPC_ALL = reg("NPC_ALL", InstanceEvent::class) {
-    event.instance.entities.mapNotNull {if (it !is Player) EntityAsAudience(it) else null }.toSet()
-}
-val TARGET_NPC_RAND = reg("NPC_RAND", InstanceEvent::class) { setOf(TARGET_NPC_ALL.get(this).random()) }
-val TARGET_DEFAULT = reg("DEFAULT", EntityInstanceEvent::class) {
-    setOf(if (event.entity is Audience) event.entity as Audience else EntityAsAudience(event.entity))
-}
-// event specific
-val TARGET_ENTITY_CLICKED = reg("ENTITY_CLICKED", PlayerEntityInteractEvent::class) { setOf(event.entity) }
 
-private fun <T : InstanceEvent> reg(n: String, e: KClass<T>, g: EventDataContext<T>.() -> Set<Audience>)
-    = EventTarget(n, e, g).also { nameToEventTarget[n] = it }
+object TargetNone : EventTarget<InstanceEvent> by implTarget("NONE",
+    InstanceEvent::class,
+    { setOf() },
+)
+object TargetPlayersAll : EventTarget<InstanceEvent> by implTarget("PLAYERS ALL",
+    InstanceEvent::class,
+    { it.instance.players },
+)
+object TargetPlayerRand : EventTarget<InstanceEvent> by implTarget("PLAYER RAND",
+    InstanceEvent::class,
+    { setOf(TargetPlayersAll.get(it).random()) },
+)
+object TargetNPCAll : EventTarget<InstanceEvent> by implTarget("NPC ALL",
+    InstanceEvent::class,
+    { it.instance.entities.mapNotNull { entity -> if (entity !is Player) NPCAsAudience(entity) else null }.toSet() },
+)
+object TargetNPCRand : EventTarget<InstanceEvent> by implTarget("NPC RAND",
+    InstanceEvent::class,
+    { setOf(TargetNPCAll.get(it).random()) },
+)
+
+// event specific
+
+object TargetDefault : EventTarget<EntityInstanceEvent> by implTarget("DEFAULT",
+    EntityInstanceEvent::class,
+    { setOf(if (it.entity is Audience) it.entity as Audience else NPCAsAudience(it.entity)) },
+)
+object TargetEntityClicked : EventTarget<PlayerEntityInteractEvent> by implTarget("ENTITY CLICKED",
+    PlayerEntityInteractEvent::class,
+    { setOf(it.entity) },
+)
 
 fun EventTarget<*>.targetClass() =
     if (name == "NONE") TargetClass.NONE

@@ -1,61 +1,62 @@
-package userunp.hyperstom
+package ma.userunp.hyperstom
 
-import userunp.hyperstom.command.initCommands
-import userunp.hyperstom.datastore.StorePlayerState
-import userunp.hyperstom.datastore.TagStore
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ma.userunp.hyperstom.command.initCommands
+import ma.userunp.hyperstom.world.*
 import net.minestom.server.MinecraftServer
 import net.minestom.server.entity.GameMode
-import net.minestom.server.event.Event
-import net.minestom.server.event.EventNode
 import net.minestom.server.event.player.AsyncPlayerConfigurationEvent
+import net.minestom.server.event.player.PlayerDisconnectEvent
 import net.minestom.server.event.server.ServerListPingEvent
 import net.minestom.server.extras.MojangAuth
 import net.minestom.server.utils.identity.NamedAndIdentified
-import userunp.hyperstom.world.*
-import java.util.UUID
+import java.util.*
 import kotlin.time.measureTime
 
 private const val VERSION = "1.0.0-alpha"
 private val LOGGER = KotlinLogging.logger {}
 
-val HUB_WORLD_INFO = WorldInfo("HUB WORLD", null, null)
+val HUB_WORLD_INFO = WorldInfo("HUB WORLD", null, BUILD_SPAWN_POINT)
 val HUB_WORLD_ID = UUID(0, 0)
-private val HUB_WORLD_STATE = StorePlayerState(WorldMode.PLAY.ordinal, HUB_WORLD_ID)
-
-fun main() {
-    LOGGER.info { "\t*** Hyperstom - v$VERSION ***" }
-    val server = MinecraftServer.init()
-    val eventHandler = MinecraftServer.getGlobalEventHandler()
-    LOGGER.info { "\t> Took ${measureTime {
-        LOGGER.info { "\t> Initializing data." }
-        initData()
-        LOGGER.info { "\t> Initializing worlds." }
-        initWorlds()
-        LOGGER.info { "\t> Initializing MC server." }
-        initMCServer(eventHandler)
-        server.start("0.0.0.0", 25565)
-        MinecraftServer.getSchedulerManager().buildShutdownTask(::shutdownWorlds)
-    }} seconds." }
-}
-
-fun initMCServer(eventHandler: EventNode<Event>) {
-    MojangAuth.init()
-    initCommands()
-    eventHandler.addListener(AsyncPlayerConfigurationEvent::class.java, ::configurePlayer)
-    eventHandler.addListener(ServerListPingEvent::class.java, ::pingEntries)
-    MinecraftServer.setBrandName("Hyperstom")
-}
-
-
-private fun pingEntries(e: ServerListPingEvent) = e.responseData.addEntries(
+private val PING_ENTIRES = arrayOf(
     NamedAndIdentified.named("Hyperstom - v$VERSION"),
 )
 
+val playerStates = mutableMapOf<UUID, PlayerState>()
+
+fun main() {
+    LOGGER.info { "\t*** Hyperstom - v$VERSION ***" }
+    val dur = measureTime {
+        val server = MinecraftServer.init()
+        LOGGER.info { "\t> Initializing worlds." }
+        try { initWorlds() } catch (e: Exception) { LOGGER.error(e) { "Error whilst initializing worlds!" } }
+        LOGGER.info { "\t> Initializing MC server." }
+        initMCServer()
+        server.start("0.0.0.0", 25565)
+        MinecraftServer.getSchedulerManager().buildShutdownTask(::shutdownWorlds)
+    }
+    LOGGER.info { "\t> Took $dur" }
+}
+
 private fun configurePlayer(e: AsyncPlayerConfigurationEvent) {
-    TagStore(e.player).use { it.write(HUB_WORLD_STATE) }
     val world = worlds[HUB_WORLD_ID] ?: throw RuntimeException("Hub world ($HUB_WORLD_ID) does not exist!")
+    playerStates[e.player.uuid] = PlayerState(WorldMode.PLAY, world)
     e.spawningInstance = world.play
-    e.player.respawnPoint = world.info.spawnLoc ?: BUILD_SPAWN_POINT
+    e.player.respawnPoint = world.files.info.spawnLoc
     e.player.gameMode = GameMode.SURVIVAL
+}
+
+private fun handlePlayerDisconnect(e: PlayerDisconnectEvent) {
+    playerStates.remove(e.player.uuid)
+}
+
+fun initMCServer() {
+    initExceptionHandler()
+    MojangAuth.init()
+    initCommands()
+    val eventHandler = MinecraftServer.getGlobalEventHandler()
+    eventHandler.addListener(AsyncPlayerConfigurationEvent::class.java, ::configurePlayer)
+    eventHandler.addListener(PlayerDisconnectEvent::class.java, ::handlePlayerDisconnect)
+    eventHandler.addListener(ServerListPingEvent::class.java) { it.responseData.addEntries(*PING_ENTIRES) }
+    MinecraftServer.setBrandName("Hyperstom")
 }
