@@ -19,7 +19,7 @@ private val LOGGER = KotlinLogging.logger {}
 
 val BUILD_SPAWN_POINT = Pos(0.0, 65.0, 0.0)
 
-val worlds = mutableMap<UUID, WorldManager>()
+val worlds = mutableMapOf<UUID, WorldManager>()
 
 fun initWorlds() {
     val dir = File(WORLDS_DIR)

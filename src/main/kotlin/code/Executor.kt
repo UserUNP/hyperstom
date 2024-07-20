@@ -6,7 +6,6 @@ import kotlinx.coroutines.*
 import net.kyori.adventure.audience.Audience
 import net.minestom.server.event.trait.InstanceEvent
 import ma.userunp.hyperstom.Named
-import net.minestom.server.listener.manager.PacketListenerManager
 import java.util.UUID
 import kotlin.reflect.KClass
 import kotlin.reflect.safeCast

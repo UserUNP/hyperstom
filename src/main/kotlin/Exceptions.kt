@@ -26,5 +26,4 @@ class HSException(cause: Throwable, msg: String? = null): Exception(cause) {
 class CodeException(cause: Throwable) : Exception(cause)
 class ParamException(msg: String, val mark: Int) : Exception(msg)
 class CommandException(msg: String) : Exception(msg)
-class DataStoreException(msg: String) : Exception(msg)
 class WorldIOException(msg: String) : Exception(msg)
