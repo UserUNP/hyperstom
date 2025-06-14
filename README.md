@@ -1,8 +1,10 @@
 # Hyperstom
-Open source Minecraft coding server
+Open source Minecraft coding server.
 
-There's no dev mode currently. The code is hardcoded into every world for testing purposes  
+There's _no dev mode_ currently. The code is hardcoded into every world for testing purposes  
 (use `/world lslabels verbose` to read each instruction in each label)
+
+Inspired by [DiamondFire](https://mcdiamondfire.com/)
 
 # License
 This project is licensed under the [GNU General Public License 3.0](https://www.gnu.org/licenses/gpl-3.0.txt).  
